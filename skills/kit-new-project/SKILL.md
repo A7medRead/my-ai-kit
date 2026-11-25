@@ -30,11 +30,30 @@ Present briefly in the chat:
 1. Understanding, in a few lines.
 2. Tool choices and costs.
 3. Structure: folders by feature; UI, business logic and data access separated; config outside code; migrations.
-4. Naming and style conventions, plus formatter and linter.
+4. Conventions (see below).
 5. Security needs.
-6. Phases, each ending in something usable. Tasks small enough to finish and verify one at a time, each with an ID (`T-001`), a level (`Low`/`Medium`/`High`) and a "done when" line.
+6. Phases, each ending in something usable, split into small tasks (see below). Each task has an ID (`T-001`), a level (`Low`/`Medium`/`High`) and a "done when" line.
 7. Which checks run for this stack.
 8. Open questions and risks.
+
+Before sending, confirm all eight are present. If one does not apply, say so and why.
+
+### Conventions
+- Naming for files, folders, components, variables and database objects, with an example.
+- Formatter and linter.
+- For projects with a UI, also state:
+  - **Styling approach:** the method or library, why it fits this project, and the alternative.
+  - **Class naming:** the exact rule with an example (for utility classes: when to extract a component and how custom classes are named).
+  - **Design tokens:** the single file that holds colors, type and spacing.
+  - **Direction and language:** LTR, RTL or both. For Arabic or other RTL: logical CSS properties, `dir` and `lang`, fonts, number and date formats, mirrored directional icons. This is decided in the first version, not added later.
+
+Write the approved conventions into the project `AGENTS.md`.
+
+### Task size
+- One task delivers one verifiable result and fits in one session and one commit.
+- Split a task that has several results in its "done when", spans several screens or features, or combines data model, business rules and UI. For example, split "booking and availability" into schema, availability rules, conflict protection and booking form.
+- A `High` task is a signal to look for a further split.
+- "Done when" names observable evidence (a passing test, a screen checked, an approval).
 
 Level guide: `High` = architecture, security, hard bugs; `Medium` = normal features; `Low` = text, styling, repetitive work.
 

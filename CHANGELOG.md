@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.2 - 2026-11-25
+`kit-new-project` plans must now state the styling approach, class naming, tokens and text direction, and split large tasks.
+
 ## 0.2.1 - 2026-11-25
 Secret scan fixes:
 - Files treated as binary (NUL bytes, `.gitattributes`, UTF-16) are now scanned.
