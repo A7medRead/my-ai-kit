@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.5 - 2026-11-26
+Fixes from a trial review (`docs/ISSUES.md`, KI-006 and KI-011), not yet confirmed by a later task:
+- The core rules require the full delivery report, also for fixes after a review.
+- The core rules require approval for anything that differs from an approved mockup, including new elements and states, before a screen task is done.
+
 ## 0.4.4 - 2026-11-26
 A fix from a trial review (`docs/ISSUES.md`, KI-011), not yet confirmed by a later task:
 - `kit-deliver` requires the mockup comparison before a screen is done, and the report has a line for the differences left and their approval.

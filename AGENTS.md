@@ -61,6 +61,7 @@ When a task is finished, use `kit-deliver`:
 - Commit only what you reviewed, including anything already staged.
 - Push automatically **only if** all hold: the checks for this change level passed, the branch is not `main`/`master`, the secret scan passed, you know which remote and commits will go, and nothing the push triggers deploys to production or costs money. Otherwise do not push, and say why.
 - Never merge on your own. Merge only when the user explicitly approves that merge, after the full checks pass.
+- End every delivery, including fixes after a review, with the full report from `kit-deliver` step 7: every line, none dropped.
 
 ## 9. Status and learning
 - When asked where the project stands, use `kit-status`. Never answer from memory or from a docs file alone.
@@ -79,6 +80,7 @@ Start simple but organized (feature-based folders, UI separated from logic and d
 
 ## 12. User interfaces
 Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before its self-review passed; if it cannot be verified, label it an unverified draft that cannot be approved yet. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
+When a screen has an approved mockup, anything that differs from it, including a new element or state it does not show, needs the user's approval before the task is `done`.
 
 ## Skills
 | Skill | Use it when |
