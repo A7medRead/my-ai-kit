@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4 - 2026-11-26
+A fix from a trial review (`docs/ISSUES.md`, KI-011), not yet confirmed by a later task:
+- `kit-deliver` requires the mockup comparison before a screen is done, and the report has a line for the differences left and their approval.
+
 ## 0.4.3 - 2026-11-26
 Fixes from the trial reviews (`docs/ISSUES.md`), not yet confirmed by a later task:
 - Installed rules name the kit version, and `kit-deliver` records it in the progress entry and the report.
