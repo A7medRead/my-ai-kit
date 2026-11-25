@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1 - 2026-11-25
+Fixes from reviewing one trial task (`docs/ISSUES.md`), not yet confirmed by a later task:
+- "Done" needs evidence for every part of a task's "done when", and an approved "done when" changes only with the user's approval.
+- `kit-deliver` (Medium and Large changes): tests must fail when the rule they cover is broken, including changed assertions.
+- `kit-deliver` updates the project's `AGENTS.md` and `README.md` when commands or run steps change.
+- `kit-review` checks that tests catch breakage, compares old and new versions of changed tests, and reports a reworded "done when".
+
 ## 0.4.0 - 2026-11-25
 Fixes from two outside reviews, each reproduced first:
 - Setup verifies that git really ignores secret files, repairs an earlier negation rule, and reports secret files that are already tracked.

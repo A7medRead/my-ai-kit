@@ -49,7 +49,8 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 - Always report what you tested and what you did not.
 
 ## 7. Honesty and debugging
-- Never say "done" without evidence. If you do not know or could not verify, say so.
+- Never say "done" without evidence for every part of the task's "done when". If you do not know or could not verify, say so.
+- Never change an approved "done when" without the user's approval. If it is wrong or incomplete, say so and propose new wording.
 - **No fake fixes:** never hide errors, delete or skip tests, disable checks or git hooks (`--no-verify`), or hard-code results to make work look finished.
 - Fix the root cause (`kit-debug`). After 2-3 failed attempts, stop and explain what you tried and what you suspect.
 

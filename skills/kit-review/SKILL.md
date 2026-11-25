@@ -14,7 +14,8 @@ Do not edit code unless asked. Judge the code, not the author's description of i
    - **Security:** use `kit-security` for sensitive areas.
    - **Honesty:** skipped or weakened tests, swallowed errors, hard-coded results, claims without evidence.
    - **Maintainability:** duplication, unneeded complexity or dependencies, naming, project conventions.
-   - **Tests and docs:** match the change.
+   - **Tests:** each part of "done when" has evidence, and its test fails when that rule is broken. Run the old and new versions of a changed test against the same breakage. Use a temporary copy or a rolled-back transaction, never real data.
+   - **Docs:** commands and run instructions match the change. A reworded "done when" is a finding unless the user approved it.
 3. Run the relevant checks yourself when possible.
 4. Verify each finding against the code before reporting it; drop what you cannot support.
 

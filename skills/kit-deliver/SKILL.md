@@ -16,6 +16,11 @@ description: "Use when a task is finished - verify at the right level, comment, 
 ## 2. Verify
 Pick the level (Simple / Medium / Large or sensitive) from the core rules; risk beats size. Run those checks and read the output. A failing check means the task is not done: fix the cause (`kit-debug`) or report it. Never weaken a check.
 
+For Medium and Large changes:
+- Name the evidence for each part of the task's "done when". A part without evidence means the task is not done.
+- When the evidence is a test, break the rule it covers for a moment, confirm the test fails, then restore and rerun. Do this locally with test data only and leave no change behind.
+- If you changed an existing test or assertion, confirm the same way that it still catches what it caught before.
+
 If the task added a new kind of check (first tests, a new tool), add its command to `.ai-kit/checks.sh`.
 
 ## 3. Record, in the same commit
@@ -25,6 +30,7 @@ If the project has no kit docs, do not create them just to deliver; offer to set
 - `docs/DECISIONS.md`: only if a real decision was made.
 - `docs/LESSONS.md`: only if something should not be repeated.
 - `docs/ARCHITECTURE.md` / `docs/RUNBOOK.md`: only if structure or operation changed.
+- `AGENTS.md` and `README.md`: when commands, prerequisites or the way to run the project changed.
 
 ## 4. Branch, then secret scan
 Pick the branch before committing:
