@@ -12,6 +12,7 @@ Run `node scripts/project-status.mjs <project>` from this skill's folder (macOS,
 It stops when the folder belongs to a parent repository. Add `--allow-parent` only when the project really is a part of that repository (for example a monorepo); otherwise tell the user it needs its own `git init`.
 Without Node, run: `git fetch --all --prune`, `git status -sb`, `git log --oneline --date=short -15`, `git for-each-ref --sort=-committerdate refs/heads refs/remotes`, `git stash list`.
 If fetch fails, say the remote state is unverified.
+For a read-only check, or while another session or tool is working in the project, add `--no-fetch` (without Node, skip the fetch) and say the remote state is unverified.
 
 ## 2. Compare
 - Read the "Current position" block and task list in `docs/PLAN.md`, and the latest `docs/PROGRESS.md` entry.

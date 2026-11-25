@@ -20,5 +20,5 @@ Color and size values live only in the token file: `<path>`.
 ## Rules for new screens
 
 ## Visual verification
-| Date | Screen | Mobile | Desktop | Gaps |
-|---|---|---|---|---|
+| Date | Screen | Mobile | Tablet | Desktop | Gaps |
+|---|---|---|---|---|---|

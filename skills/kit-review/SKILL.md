@@ -16,10 +16,13 @@ Do not edit code unless asked. Judge the code, not the author's description of i
    - **Maintainability:** duplication, unneeded complexity or dependencies, naming, project conventions.
    - **Tests:** each part of "done when" has evidence, and its test fails when that rule is broken. Run the old and new versions of a changed test against the same breakage. Use a temporary copy or a rolled-back transaction, never real data.
    - **Docs:** commands and run instructions match the change. A reworded "done when" is a finding unless the user approved it.
+   - **UI:** when an approved mockup exists, repeat the side-by-side comparison from `kit-design` step 7.
 3. Run the relevant checks yourself when possible.
 4. Verify each finding against the code before reporting it; drop what you cannot support.
 
 ## Report
 Verdict: ready / ready after fixes / not ready. Findings by severity with file and line, a concrete failure scenario, and a suggested fix. Then what you did not review. If there are no real problems, say so; do not invent any.
+
+When another session or tool wrote the work, end with a short message the user can paste to it: the findings, the required fixes and what not to start. Do not change the project or its task status; the writer fixes, and marks the task `unverified` if its "done when" is not met.
 
 For large or sensitive changes, suggest a review by a different model or a fresh session.

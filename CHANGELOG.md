@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2 - 2026-11-25
+Fixes from the trial reviews (`docs/ISSUES.md`), not yet confirmed by a later task:
+- `kit-design` compares built screens with the approved mockup state by state and lists every difference; `kit-review` repeats it.
+- `kit-design` adds the color-token check to the project's own checks; `design-check.mjs` no longer breaks a project's lint when copied.
+- The `DESIGN.md` template has a tablet column.
+- `kit-deliver` reports every line, including the next task's level.
+- `kit-review` ends with a message for the writer and leaves the project unchanged.
+- `kit-status` skips the fetch in read-only checks.
+
 ## 0.4.1 - 2026-11-25
 Fixes from reviewing one trial task (`docs/ISSUES.md`), not yet confirmed by a later task:
 - "Done" needs evidence for every part of a task's "done when", and an approved "done when" changes only with the user's approval.

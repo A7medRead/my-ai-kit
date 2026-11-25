@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+/* eslint-disable */
+// Projects copy this file into .ai-kit/, where their browser or module lint rules must not apply to it.
 // Checks the measurable design mistakes of a page and saves screenshots for visual review.
 // Needs Node 22+ and an installed Chrome, Edge or Chromium (set CHROME_PATH to choose one).
 //

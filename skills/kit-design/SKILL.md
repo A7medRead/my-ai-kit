@@ -85,6 +85,7 @@ No application interface code before the user picks a direction.
 - Type scale, spacing scale, radius, elevation, motion durations, breakpoints.
 - Reuse an existing component before creating one that does the same job.
 - Check text contrast (WCAG AA).
+- Enforce the token rule in the project: copy this skill's `scripts/design-check.mjs` to `.ai-kit/`, and add `node .ai-kit/design-check.mjs --source <dir> --tokens <file>` to `.ai-kit/checks.sh` (no browser needed). Exclude `.ai-kit/` from any formatter that scans it.
 - Record in `docs/DESIGN.md`: research, approved direction and reasons. Refer to the token file; do not repeat its values.
 
 ## 6. Build
@@ -97,6 +98,11 @@ No application interface code before the user picks a direction.
 
 ## 7. Verify visually
 Run the self-review on the built screens, compare with the approved direction, fix the gaps. If you cannot see the result, say so and ask the user to check.
+
+When an approved mockup exists:
+- Screenshot the mockup and the built screens in the same states and sizes (`--before` reaches later states) and look at them side by side.
+- List every difference in text, layout, color, and missing or added controls. Fix each one, or ask the user to approve keeping it.
+- Report the list, or "none".
 
 ## 8. Record
 Add two lines to `design-history.md` (date, field, layout, fonts, palette character, signature element). No client names or private details: the kit may be published. If you cannot write there, give the user the lines.
