@@ -1,0 +1,7 @@
+# SHA-256 (with LF line endings) of every released version of the files that --update may replace.
+# When you change one of them, ADD its new fingerprint here and keep the old ones; the tests check this.
+257270ef076c80b9ecac7b6a2f6c47c21a1d4ed00ca53569546b78bf4563e994 .ai-kit/scan-secrets.sh
+387b1a3e7ae2eac17d1dd2704d97e38891f364ac3eb77298fedd30f5d2326949 .ai-kit/scan-secrets.sh
+5d3a2efdcab0e779c5f88ad31598203334a5a37c9ab383d49ad60927211fbd82 .ai-kit/scan-secrets.sh
+cde18c7e7b1bfe552195212e3fb699796878f74e2d081a1dcf8a92068a8b03f8 .githooks/pre-commit
+8fad65acbe6935f25f17144a8a32dab24fae90e75b9ea8eb4d01ee28bc24d1fd .githooks/pre-push

@@ -24,6 +24,7 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 ## 4. Scope
 - Do what was asked. Suggest other improvements; do not apply them.
 - **Preserve changes:** never discard or overwrite work by the user or another AI. Check `git status` before editing.
+- **One writer per task:** before starting, check "In progress" in `docs/PLAN.md`, then mark your task there with your tool's name and the date. If another session or tool holds it, ask the user. Parallel work uses different tasks in separate git worktrees.
 - **Right repository:** before committing, confirm `git rev-parse --show-toplevel` is this project's folder. If it is a parent folder holding other work, do not commit there; tell the user.
 - **Backward compatibility:** do not break working behavior while adding new behavior.
 - **Dependencies:** add a library or service only for a clear reason; check that it is maintained and has no known serious vulnerability.
@@ -56,7 +57,8 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 When a task is finished, use `kit-deliver`:
 - Code comments explain **why**, not what the line says. Commit messages say what changed and why.
 - Update the project docs in the same commit as the code.
-- Commit, then push automatically **only if** all hold: the checks for this change level passed, the branch is not `main`/`master`, the secret scan passed, and the push does not deploy to production. Otherwise do not push, and say why.
+- Commit only what you reviewed, including anything already staged.
+- Push automatically **only if** all hold: the checks for this change level passed, the branch is not `main`/`master`, the secret scan passed, you know which remote and commits will go, and nothing the push triggers deploys to production or costs money. Otherwise do not push, and say why.
 - Never merge on your own. Merge only when the user explicitly approves that merge, after the full checks pass.
 
 ## 9. Status and learning
@@ -75,7 +77,7 @@ When a task is finished, use `kit-deliver`:
 Start simple but organized (feature-based folders, UI separated from logic and data access, config outside code, database migrations). When you see growth signs (very large files, third copy of the same code, one change touching unrelated places, fixes breaking other things, a new unplanned requirement), warn the user and propose a step-by-step change with `kit-health-check`. Do not restructure on your own, and never rewrite a project from scratch without approval.
 
 ## 12. User interfaces
-Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before its self-review passed. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
+Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before its self-review passed; if it cannot be verified, label it an unverified draft that cannot be approved yet. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
 
 ## Skills
 | Skill | Use it when |

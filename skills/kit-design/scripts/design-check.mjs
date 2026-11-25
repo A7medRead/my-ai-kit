@@ -5,6 +5,7 @@
 // Usage: node design-check.mjs <page.html | http://localhost:...>... [options]
 //   --out <dir>            where screenshots go (default: a new temporary folder)
 //   --mobile 360x700       small phone size
+//   --tablet 768x1024      tablet size
 //   --desktop 1280x800     desktop size
 //   --before "<js>"        run in the page first, to reach a later state
 //   --source <dir> --tokens <file>   report color values written outside the token file
@@ -18,18 +19,18 @@ import { pathToFileURL } from 'node:url';
 
 function usage(message) {
     console.error(message);
-    console.error('Usage: node design-check.mjs <page>... [--out dir] [--mobile WxH] [--desktop WxH] [--before js] [--source dir --tokens file]');
+    console.error('Usage: node design-check.mjs <page>... [--out dir] [--mobile WxH] [--tablet WxH] [--desktop WxH] [--before js] [--source dir --tokens file]');
     process.exit(2);
 }
 
-const options = { mobile: '360x700', desktop: '1280x800' };
+const options = { mobile: '360x700', tablet: '768x1024', desktop: '1280x800' };
 const pages = [];
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
     if (!args[i].startsWith('--')) pages.push(args[i]);
     else {
         const key = args[i].slice(2);
-        if (!['out', 'mobile', 'desktop', 'before', 'source', 'tokens'].includes(key)) usage(`Unknown option: ${args[i]}`);
+        if (!['out', 'mobile', 'tablet', 'desktop', 'before', 'source', 'tokens'].includes(key)) usage(`Unknown option: ${args[i]}`);
         options[key] = args[++i] ?? usage(`Missing value for --${key}`);
     }
 }
@@ -57,11 +58,76 @@ let failures = 0;
 let warnings = 0;
 
 // ---------- Color values outside the token file ----------
+const NAMED = ('aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood ' +
+    'cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray ' +
+    'darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen ' +
+    'darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue ' +
+    'firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew ' +
+    'hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan ' +
+    'lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray ' +
+    'lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue ' +
+    'mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred ' +
+    'midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid ' +
+    'palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple ' +
+    'rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue ' +
+    'slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white ' +
+    'whitesmoke yellow yellowgreen').split(' ').join('|');
+const HEX = '#(?:[0-9a-f]{8}|[0-9a-f]{6}|[0-9a-f]{3,4})(?![\\w-])';
+const NAME = `(?<![-\\w.$#@])(?:${NAMED})(?![-\\w(])`;
+const FUNCTION = /(?<![-\w])(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch)\(\s*(?:[\d.]|from\b)|(?<![-\w])color\(\s*(?:srgb|display-p3|rec2020|a98-rgb|prophoto-rgb|xyz)/i;
+const COLOR_PROPERTY = /^(?:--|\$|@)|color|background|border|outline|shadow|fill|stroke|caret|accent|decoration/i;
+const TAILWIND = new RegExp('(?<![-\\w])(?:(?:bg|text|border(?:-[trblxyse])?|ring|ring-offset|fill|stroke|from|via|to|outline|decoration|shadow|accent|caret|divide|placeholder)-' +
+    '(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:50|[1-9]00|950)' +
+    '|(?:bg|text|border|ring|fill|stroke)-(?:white|black))(?![\\w-])');
+const CODE_PATTERNS = [
+    new RegExp(`["'\`]${HEX}["'\`]`, 'i'),
+    /-\[(?:#[0-9a-f]{3,8}|(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)\([^\]]*)\]/i,
+    new RegExp(`(?:color|background|border|fill|stroke|outline|shadow)[-\\w]*\\s*:\\s*[^;"'\`}]*${HEX}`, 'i'),
+    new RegExp(`(?<![-\\w])(?:color|background|backgroundColor|borderColor|border|fill|stroke|stopColor|outlineColor|textDecorationColor|caretColor|accentColor|boxShadow)` +
+        `\\s*[:=]\\s*\\{?\\s*["'\`][^"'\`]*(?:${NAME}|${HEX})[^"'\`]*["'\`]`, 'i'),
+    // A declaration inside CSS-in-JS template text.
+    new RegExp(`^\\s*(?:color|background|background-color|border-color|fill|stroke)\\s*:\\s*(?:${NAMED})\\s*;`, 'i'),
+    TAILWIND,
+    FUNCTION,
+];
+
+// Keeps line breaks so reported line numbers stay correct.
+const blank = (text) => text.replace(/[^\n]/g, ' ');
+const lineAt = (text, index) => text.slice(0, index).split('\n').length;
+
+// Looks only at declaration values, so id selectors such as "#add" are not mistaken for colors.
+function styleColors(text) {
+    const clean = text.replace(/\/\*[\s\S]*?\*\//g, blank).replace(/(^|\s)\/\/[^\n]*/g, blank);
+    const lines = [];
+    const parts = clean.split(/([;{}])/);
+    let offset = 0;
+    for (let i = 0; i < parts.length; i += 2) {
+        const segment = parts[i];
+        const declaration = parts[i + 1] === '{' ? null : /^(\s*)([-\w$@]+)\s*:([\s\S]*)$/.exec(segment);
+        if (declaration) {
+            const [, , property, raw] = declaration;
+            const value = raw.replace(/url\([^)]*\)|"[^"]*"|'[^']*'/g, blank);
+            const hit = new RegExp(HEX, 'i').exec(value) ?? FUNCTION.exec(value) ??
+                (COLOR_PROPERTY.test(property) ? new RegExp(NAME, 'i').exec(value) : null);
+            if (hit) lines.push(lineAt(clean, offset + segment.length - raw.length + hit.index));
+        }
+        offset += segment.length + 1;
+    }
+    return lines;
+}
+
+function codeColors(text) {
+    const clean = text.replace(/\/\*[\s\S]*?\*\//g, blank).replace(/^\s*\/\/.*$/gm, blank)
+        // Anchors and selectors such as href="#add" are not colors.
+        .replace(/(?:\b(?:href|to|id|htmlFor|aria-[\w-]+)\s*=\s*\{?\s*|\b(?:querySelector(?:All)?|getElementById)\(\s*)["'`]#[\w-]*["'`]/g, blank);
+    return clean.split('\n').flatMap((line, index) => (CODE_PATTERNS.some((p) => p.test(line)) ? [index + 1] : []));
+}
+
 function checkSource(directory, tokens) {
     const root = path.resolve(directory);
     const tokenFile = path.resolve(tokens);
     if (!fs.existsSync(root)) usage(`No such folder: ${root}`);
-    const functions = /\b(rgba?|hsla?|oklch|oklab|lab|lch)\(\s*[\d.]/;
+    if (!fs.statSync(tokenFile, { throwIfNoEntry: false })?.isFile()) usage(`No such token file: ${tokenFile}`);
     const found = [];
     const walk = (folder) => {
         for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
@@ -71,13 +137,18 @@ function checkSource(directory, tokens) {
                 continue;
             }
             const style = /\.(css|scss|sass|less)$/i.test(entry.name);
-            if (!style && !/\.(tsx?|jsx?|vue|svelte|html)$/i.test(entry.name)) continue;
+            const markup = /\.(vue|svelte|html)$/i.test(entry.name);
+            if (!style && !markup && !/\.([cm]?[jt]sx?)$/i.test(entry.name)) continue;
             if (path.relative(full, tokenFile) === '') continue;
-            // In code files only quoted hex values count, so anchors such as href="#faq" are not reported.
-            const hex = style ? /#[0-9a-f]{3,8}\b/i : /["'`]#([0-9a-f]{6}|[0-9a-f]{8})["'`]/i;
-            fs.readFileSync(full, 'utf8').split(/\r?\n/).forEach((line, index) => {
-                if (hex.test(line) || functions.test(line)) found.push(`${path.relative(root, full)}:${index + 1}`);
-            });
+            const text = fs.readFileSync(full, 'utf8').replace(/\r\n/g, '\n');
+            const lines = new Set(style ? styleColors(text) : codeColors(text));
+            if (markup) {
+                for (const block of text.matchAll(/(<style[^>]*>)([\s\S]*?)<\/style>/gi)) {
+                    const first = lineAt(text, block.index + block[1].length);
+                    for (const line of styleColors(block[2])) lines.add(first + line - 1);
+                }
+            }
+            for (const line of [...lines].sort((a, b) => a - b)) found.push(`${path.relative(root, full)}:${line}`);
         }
     };
     walk(root);
@@ -85,6 +156,7 @@ function checkSource(directory, tokens) {
     for (const location of found.slice(0, 30)) console.log(`FAIL  literal color at ${location}`);
     if (found.length > 30) console.log(`FAIL  ...and ${found.length - 30} more`);
     if (found.length === 0) console.log('ok');
+    console.log('This is a text search: a color built at run time or passed as a plain string is not seen.');
     failures += found.length;
 }
 
@@ -182,7 +254,10 @@ function audit(small) {
     }
     if (unmeasured) add('WARN', `${unmeasured} text element(s) sit on an image or gradient: check their contrast by eye`);
 
-    for (const image of document.images) if (!image.hasAttribute('alt')) add('FAIL', `image without alt: ${image.src.slice(0, 60)}`);
+    for (const image of document.images) {
+        if (!image.hasAttribute('alt')) add('FAIL', `image without alt: ${image.src.slice(0, 60)}`);
+        if (image.getAttribute('src') && image.complete && image.naturalWidth === 0) add('FAIL', `image failed to load: ${image.src.slice(0, 60)}`);
+    }
     for (const field of document.querySelectorAll('input, select, textarea')) {
         if (['hidden', 'submit', 'button', 'reset', 'image'].includes(field.type)) continue;
         if (!field.labels?.length && !field.getAttribute('aria-label') && !field.getAttribute('aria-labelledby') && !field.title) {
@@ -310,12 +385,35 @@ async function checkPages(urls) {
             socket.send(JSON.stringify({ id, method, params, sessionId }));
         }), 20000, method);
 
-        const sizes = [['mobile', size(options.mobile)], ['desktop', size(options.desktop)]];
+        const sizes = ['mobile', 'tablet', 'desktop'].map((label) => [label, size(options[label])]);
         for (const [index, url] of urls.entries()) {
             for (const [label, viewport] of sizes) {
                 const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
                 const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
                 await send('Page.enable', {}, sessionId);
+                // Errors and failed requests are collected from the first moment of loading.
+                const runtime = [];
+                const requests = new Map();
+                const report = (message) => runtime.push({ level: 'FAIL', message });
+                const watch = ({ sessionId: from, method, params }) => {
+                    if (from !== sessionId) return;
+                    if (method === 'Runtime.exceptionThrown') {
+                        const detail = params.exceptionDetails;
+                        report(`JavaScript error: ${(detail.exception?.description ?? detail.text).split('\n')[0].slice(0, 120)}`);
+                    } else if (method === 'Runtime.consoleAPICalled' && params.type === 'error') {
+                        report(`console error: ${params.args.map((a) => a.value ?? a.description ?? '').join(' ').split('\n')[0].slice(0, 120)}`);
+                    } else if (method === 'Network.requestWillBeSent') {
+                        requests.set(params.requestId, params.request.url);
+                    } else if (method === 'Network.responseReceived' && params.response.status >= 400) {
+                        if (!/\/favicon\.ico$/.test(params.response.url)) report(`request failed (${params.response.status}): ${params.response.url.slice(0, 100)}`);
+                    } else if (method === 'Network.loadingFailed' && !params.canceled) {
+                        const failed = requests.get(params.requestId) ?? '';
+                        if (!/\/favicon\.ico$/.test(failed)) report(`request failed (${params.errorText}): ${failed.slice(0, 100)}`);
+                    }
+                };
+                listeners.add(watch);
+                await send('Runtime.enable', {}, sessionId);
+                await send('Network.enable', {}, sessionId);
                 // mobile:false keeps the layout at this exact size. Mobile emulation widens the page to fit
                 // overflowing content, which would hide the very problem being checked.
                 await send('Emulation.setDeviceMetricsOverride', { ...viewport, deviceScaleFactor: 1, mobile: false }, sessionId);
@@ -351,7 +449,8 @@ async function checkPages(urls) {
                 fs.writeFileSync(file, Buffer.from(shot.data, 'base64'));
 
                 console.log(`\n== ${pages[index]} [${label} ${viewport.width}x${viewport.height}] ==`);
-                const unique = [...new Map(results.map((r) => [r.level + r.message, r])).values()];
+                listeners.delete(watch);
+                const unique = [...new Map([...runtime, ...results].map((r) => [r.level + r.message, r])).values()];
                 for (const { level, message } of unique) console.log(`${level}  ${message}`);
                 if (unique.length === 0) console.log('ok');
                 console.log(`screenshot: ${file}`);

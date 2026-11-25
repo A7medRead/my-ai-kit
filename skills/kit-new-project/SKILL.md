@@ -17,7 +17,7 @@ Output of this skill is an approved plan. No feature code before approval.
 
 Ask only questions whose answers change the plan, grouped in one message.
 
-**Existing project:** first read `AGENTS.md`, `README`, the `docs/` files, dependency manifests, folder structure and recent `git log`. Run `kit-status`. Respect the current stack and conventions; propose changes, do not impose them.
+**Existing project:** first read `AGENTS.md`, `README`, `docs/PLAN.md`, `docs/LESSONS.md`, dependency manifests, folder structure and recent `git log`; open other documents and code only as the task needs. Run `kit-status`. Respect the current stack and conventions; propose changes, do not impose them.
 
 ## 2. Choose tools
 For each major choice (framework, database, auth, hosting, key libraries):
@@ -80,7 +80,8 @@ Level guide: `High` = architecture, security, hard bugs; `Medium` = normal featu
 - Put the real lint, type check, test, build and dependency audit commands in `.ai-kit/checks.sh`, and add the toolchain setup steps to `.github/workflows/ai-kit-checks.yml`.
 - If the setup reports existing git hooks, add the secret scan to them instead of replacing them.
 - Confirm `git config core.hooksPath` prints `.githooks` (or that the scan was added to existing hooks) and report it.
-- To refresh the scanner and hooks in an older project, run the setup with `--update`.
+- Exit code 1 means setup is incomplete: handle every `ACTION` line (exposed or tracked secret files, customized files). Ask before removing anything from git.
+- To refresh the scanner and hooks in an older project, run the setup with `--update`. It replaces only unchanged older versions; merge customized ones by hand.
 - Commit the setup (`kit-deliver`) before starting the first task.
 - CI minutes on private repositories can be limited or billed; tell the user.
 - Before downloading tools or container images, tell the user names, sources and sizes and wait for approval. Check local services as `kit-security` describes.

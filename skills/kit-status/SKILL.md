@@ -9,6 +9,7 @@ Do not answer from conversation memory, a summary, or a docs file alone.
 
 ## 1. Collect facts
 Run `node scripts/project-status.mjs <project>` from this skill's folder (macOS, Windows, Linux).
+It stops when the folder belongs to a parent repository. Add `--allow-parent` only when the project really is a part of that repository (for example a monorepo); otherwise tell the user it needs its own `git init`.
 Without Node, run: `git fetch --all --prune`, `git status -sb`, `git log --oneline --date=short -15`, `git for-each-ref --sort=-committerdate refs/heads refs/remotes`, `git stash list`.
 If fetch fails, say the remote state is unverified.
 
@@ -19,7 +20,9 @@ If fetch fails, say the remote state is unverified.
 - When docs and reality disagree or something is unclear, inspect the code and run the relevant tests.
 
 ## 3. Reality wins
-Correct `docs/PLAN.md` to match what you verified and tell the user what was stale. A task is "done" only with evidence (code present and checks passing); otherwise mark it unverified.
+A task is "done" only with evidence (code present and checks passing); otherwise it is unverified.
+- Correct the "Current position" block and task statuses in `docs/PLAN.md` yourself when the evidence is clear, and show exactly what you changed. Change nothing else.
+- Only propose the correction, without editing, when anything is uncertain, another session or tool holds a task or has recent uncommitted work, or the user asked for a read-only check.
 
 ## 4. Answer
 ```

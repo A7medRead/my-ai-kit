@@ -18,6 +18,23 @@ if (!argument) stop('Usage: node init-taste.mjs <kit folder>');
 const kit = path.resolve(argument);
 if (!fs.existsSync(path.join(kit, 'AGENTS.md'))) stop(`Not the kit folder (no AGENTS.md): ${kit}`);
 
+// Ignoring a folder does nothing for files git already tracks, so those would still be published.
+if (fs.existsSync(path.join(kit, '.git'))) {
+    const inKit = (...parameters) => {
+        const result = spawnSync('git', ['-C', kit, ...parameters], { encoding: 'utf8' });
+        if (result.status !== 0) stop(`git failed in the kit folder: ${result.stderr ?? result.error?.message}`);
+        return result.stdout.trim();
+    };
+    const tracked = inKit('ls-files', '--', 'taste');
+    if (tracked) {
+        stop(`STOPPED: the kit repository already tracks files in taste/:\n${tracked}\n` +
+            'Ask the user, then "git rm -r --cached taste" and commit. If it was pushed, it remains in public history.');
+    }
+    if (inKit('rev-list', '--all', '--max-count=1') && inKit('log', '--all', '--oneline', '--', 'taste')) {
+        console.log('WARNING: taste/ appears in the kit history. If that history was pushed, those files are public.');
+    }
+}
+
 // The library holds personal preferences and third-party screenshots, so the kit must not publish it.
 const ignoreFile = path.join(kit, '.gitignore');
 let ignore = fs.existsSync(ignoreFile) ? fs.readFileSync(ignoreFile, 'utf8') : '';

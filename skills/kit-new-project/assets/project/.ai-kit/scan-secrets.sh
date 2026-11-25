@@ -69,10 +69,14 @@ report() {
             }
             if (rule == "hardcoded-credential") {
                 # A whole value such as env(OPENAI_API_KEY) names a variable and holds no secret.
+                # Long text without an underscore does not look like a name, so it stays reported.
                 reference = original
                 sub(/["\047]$/, "", reference)
                 sub(/^.*["\047]/, "", reference)
-                if (reference ~ /^env[(][A-Z][A-Z0-9_]*[)]$/) next
+                if (reference ~ /^env[(][A-Z][A-Z0-9_]*[)]$/) {
+                    inner = substr(reference, 5, length(reference) - 5)
+                    if (length(inner) <= 64 && (index(inner, "_") || length(inner) <= 24)) next
+                }
                 sub(/["\047]$/, "", value)
                 sub(/^.*["\047]/, "", value)
                 if (value ~ /example|changeme|change-me|your[_-]|placeholder|dummy|xxxx|[$][{]|<[a-z_ -]+>/) next

@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Collects the real state of a project in one run. Changes nothing except "git fetch".
-// Usage: node project-status.mjs [project] [--no-fetch]
+// Usage: node project-status.mjs [project] [--no-fetch] [--allow-parent]
+// Stops when the folder belongs to a parent repository, unless --allow-parent says that is intended.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
 const noFetch = args.includes('--no-fetch');
+const allowParent = args.includes('--allow-parent');
 const project = path.resolve(args.find((a) => !a.startsWith('--')) ?? '.');
 
 function git(cwd, ...parameters) {
@@ -36,7 +38,11 @@ const show = (result) => {
 // Without its own repository, a project would silently report a parent folder's history.
 if (git(project, 'rev-parse', '--show-prefix').out) {
     console.log(`WARNING: ${project} is inside a larger repository (${root}).`);
-    console.log('The history below belongs to that repository. If this folder is its own project, it needs "git init".');
+    console.log('Its history belongs to that repository. If this folder is its own project, it needs "git init".');
+    if (!allowParent) {
+        console.log('STOPPED. If the folder really is part of that repository, run again with --allow-parent.');
+        process.exit(1);
+    }
 }
 
 section('Remote');

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 - 2026-11-25
+Fixes from two outside reviews, each reproduced first:
+- Setup verifies that git really ignores secret files, repairs an earlier negation rule, and reports secret files that are already tracked.
+- `--update` replaces only unchanged released versions of the scanner and hooks, so custom hooks are kept.
+- Taste setup stops when the kit already tracks files in `taste/`.
+- `kit-status` stops inside a parent repository unless `--allow-parent` is given; it only corrects the plan on clear evidence.
+- The `env(NAME)` exception now requires text that looks like a variable name.
+- Design check: wider color detection (named, modern and Tailwind colors, token file must exist), tablet size, JavaScript errors, failed requests and broken images.
+- Rules: one writer per task, reviewed staged changes only, checks before an automatic push, unverified designs labeled as drafts, selective reading.
+- `kit-design`: asset plan, component reuse, hierarchy/typography/composition questions, check depth per stage.
+
 ## 0.3.0 - 2026-11-25
 Fixes from a full review and the first trial plans:
 - Rules: small changes in unfamiliar projects need no plan; merge only with explicit approval; no automatic push that deploys; never commit into a parent repository.

@@ -12,6 +12,13 @@ description: "Use for any new website or app interface and any major redesign - 
 | Dashboard or internal tool | All, with lighter research: usability matters more than distinctiveness |
 | Small UI edit | Follow `docs/DESIGN.md` and the tokens, build, verify visually (steps 6-7). No research |
 
+Size the checking to the stage:
+| Stage | Check |
+|---|---|
+| Small edit | The affected screen and state: design check, colors, a look at phone and desktop |
+| New interface | The full self-review below, all states and sizes |
+| Before release | The full self-review, plus the main user journeys end to end; performance and link tools when the project has them |
+
 ## 1. Understand
 Field, audience, market, identity, content, main user tasks, language direction (LTR/RTL), devices, any sites the user likes.
 Read `design-history.md` in the kit folder (its path is in the global rules block) so you do not repeat a previous look.
@@ -28,6 +35,7 @@ Read the user's taste: `taste/principles.md` and `taste/index.md` in the kit fol
 ## 3. Propose three directions
 Three that genuinely differ in layout, typography and color, not recolors. For each: concept, layout approach, typography, palette with color values, motion/3D, references and what is borrowed from each, why it fits this audience, trade-offs.
 Borrow ideas; never copy an identity, a whole site, or protected assets. Check licenses for fonts, images, icons and models.
+State the asset plan for each: photos, illustration, icons and 3D, where they come from, their license, and what is used if they are not available.
 When the taste library has examples, two directions build on it (say which) and one deliberately explores something else. Project requirements outrank taste; say when they conflict.
 
 **Difference test:** imagine all three in grayscale with the same font. If they still look like one screen restyled (same blocks in the same order and shape), redo them with different structure, flow or hierarchy.
@@ -48,7 +56,7 @@ When the taste library has examples, two directions build on it (say which) and 
 Applies to mockups and to built screens. The user should receive a design that already passed this.
 
 1. **Measure:** run `node scripts/design-check.mjs <page>... --out <folder>` from this skill's folder. Reach later states with `--before "<js>"`; for built code add `--source <dir> --tokens <file>`. Fix every `FAIL`, fix or justify every `WARN`, and run it again. Exit code 3 means nothing was verified: say so.
-2. **Look** at every screenshot, at phone and desktop size, including the filled, error and finished states.
+2. **Look** at every screenshot, at phone, tablet and desktop size, including the filled, error and finished states.
 3. **Judge**, answering each in writing with evidence:
    - In grayscale and one font, are the directions still different?
    - Could this design belong to any other business? What here belongs only to this one?
@@ -56,7 +64,12 @@ Applies to mockups and to built screens. The user should receive a design that a
    - Can every state be told apart at a glance?
    - Which anti-generic rule is closest to being broken?
    - Which user task takes the most effort, and why?
-4. A weak answer means redo that part before showing it.
+   - Where does the eye go first, and is that the most important thing?
+   - Do the type sizes and weights make the order of information clear?
+   - Is the layout balanced and deliberate, including its empty space?
+4. A weak answer means redo that part before showing it. A serious usability or accessibility problem blocks approval, however good the rest looks.
+
+**No browser, or the check cannot run:** the work may be shown, clearly labeled as an unverified draft. It is not approved until it is verified or the user has viewed it and accepts what is unchecked.
 
 Report what was measured, what you judged yourself and what is unverified. A clean check is not a good design. For important work, suggest a review by another model (`kit-review`) using the screenshots.
 
@@ -70,6 +83,7 @@ No application interface code before the user picks a direction.
 ## 5. Design system
 - One token file is the **only** place for color values. Small set: background, surface, text, muted text, border, primary, accent, success, warning, error. No literal colors in components.
 - Type scale, spacing scale, radius, elevation, motion durations, breakpoints.
+- Reuse an existing component before creating one that does the same job.
 - Check text contrast (WCAG AA).
 - Record in `docs/DESIGN.md`: research, approved direction and reasons. Refer to the token file; do not repeat its values.
 
@@ -93,7 +107,7 @@ These ban **automatic** use, not the element itself. Every choice needs a reason
 - No gradients just for decoration.
 - No "big headline plus three cards" by reflex.
 - No cards for content that works better as a list, table or open layout.
-- No repeated layout or fonts across projects.
+- No repeated layout or fonts across projects out of habit. Distinct does not mean strange: a familiar font or component is right when chosen for this project.
 - No automatic rounded corners, glass effects or heavy shadows.
 - No emoji as icons.
 - No animation or 3D that does not serve the user.

@@ -7,7 +7,9 @@ description: "Use when a task is finished - verify at the right level, comment, 
 
 ## 1. Review your own diff
 - `git rev-parse --show-toplevel` must be this project's folder. If it is a parent folder, stop and tell the user.
-- `git status` and `git diff`. Identify which changes are yours; leave other people's changes alone and never stage them blindly (`git add -A` is only safe when every change is yours).
+- `git status`, `git diff` and `git diff --cached`: plain `git diff` does not show what is already staged.
+- Identify which changes are yours; leave other people's changes alone and never stage them blindly (`git add -A` is only safe when every change is yours).
+- If something was staged before you started and is not part of this task, do not commit it and do not unstage it without asking.
 - Remove debug output and dead code you added. Confirm no unrequested changes.
 - Comments explain why. Do not narrate the code.
 
@@ -18,7 +20,7 @@ If the task added a new kind of check (first tests, a new tool), add its command
 
 ## 3. Record, in the same commit
 If the project has no kit docs, do not create them just to deliver; offer to set them up. Follow each file's format.
-- `docs/PLAN.md`: update the task's `Status` and every "Current position" field (including the next step). Restore the fields or column if they are missing.
+- `docs/PLAN.md`: update the task's `Status` and every "Current position" field (including the next step), and clear your "In progress" mark. Restore the fields or column if they are missing.
 - `docs/PROGRESS.md`: new entry at the top - date, task ID, what changed, what was tested, what was not. No commit hash; the task ID in the commit message links them.
 - `docs/DECISIONS.md`: only if a real decision was made.
 - `docs/LESSONS.md`: only if something should not be repeated.
@@ -45,13 +47,21 @@ Why: <reason>
 Tested: <checks run>
 ```
 
+Before committing, read `git diff --cached --stat` again: every staged file belongs to this task.
+
 ## 6. Push
+Look first:
+- `git remote -v` and the branch's upstream: is this the intended repository, and is it public?
+- Every commit that will be sent (`git log --oneline <upstream>..HEAD`, or `git log --oneline HEAD --not --remotes` for a new branch), including older ones you did not write.
+- What a push starts: workflow files, hosting integrations, preview or production deployments, paid CI.
+
 Push automatically only if all are true:
 - The checks for this level passed.
 - The current branch is not `main` or `master`.
 - The secret scan passed.
 - A remote exists. If none, say so; creating one is the user's decision.
-- Pushing this branch does not deploy to production. If it might, ask first.
+- The remote and every outgoing commit are expected.
+- Nothing the push starts deploys to production or costs money. If it might, ask first.
 
 No force push, no `--no-verify`. Merge only with the user's explicit approval for that merge, after the full checks. If a push is rejected, fetch and show the user the situation.
 

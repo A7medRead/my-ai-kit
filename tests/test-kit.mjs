@@ -2,6 +2,7 @@
 // Automated tests for the kit. Runs on macOS, Windows and Linux.
 // Everything happens inside a new temporary folder, which is removed at the end.
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -187,6 +188,8 @@ attempt('a secret appended to an env reference', { 's.toml': 'secret = "env(NAME
 attempt('a secret before an env reference', { 't.toml': 'token = "' + 'hunter2' + 'env(LONG_NAME)"\n' });
 attempt('a real secret on the same line as an env reference', { 'u.toml': 'secret = "env(SECRET_VALUE)" ' + fake.password + '\n' });
 attempt('a known token format inside env()', { 'v.toml': 'secret = "env(' + 'AKIA' + 'Q'.repeat(16) + ')"\n' });
+attempt('long upper-case text without an underscore inside env()', { 'w.toml': 'secret = "env(' + 'ABCDEFGHJKLMNPQRSTUVWXYZ234567' + ')"\n' });
+attempt('an overlong name inside env()', { 'x.toml': 'secret = "env(' + 'AB_'.repeat(30) + ')"\n' });
 put(path.join(project, 'refs.toml'),
     'openai_api_key = "env(OPENAI_API_KEY)"\nauth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"\n' +
     '# secret_key = "env(SECRET_VALUE)"\ns3_secret_key = \'env(S3_SECRET_KEY)\'\n');
@@ -293,7 +296,9 @@ check('status gives no parent warning at a repository root', !r.out.includes('in
 const nested = path.join(project, 'nested app');
 fs.mkdirSync(nested);
 r = node(status, nested);
-check('status warns when a folder has no repository of its own', r.code === 0 && r.out.includes('inside a larger repository'), r.out);
+check('status stops when a folder has no repository of its own', r.code === 1 && r.out.includes('inside a larger repository') && !r.out.includes('== Branch'), r.out);
+r = node(status, nested, '--allow-parent');
+check('status continues in a parent repository only when allowed', r.code === 0 && r.out.includes('== Branch') && r.out.includes('inside a larger repository'), r.out);
 
 // ---------- Updating an older project ----------
 const older = path.join(work, 'older');
@@ -302,20 +307,59 @@ git(older, 'init', '--quiet', '-b', 'main');
 git(older, 'config', 'user.email', 'test@example.invalid');
 git(older, 'config', 'user.name', 'kit test');
 node(setup, older);
+const lf = (text) => text.replace(/\r\n/g, '\n');
+const fingerprint = (text) => createHash('sha256').update(lf(text)).digest('hex');
+const knownFile = path.join(kit, 'skills', 'kit-new-project', 'assets', 'known-versions.txt');
+for (const owned of ['.ai-kit/scan-secrets.sh', '.githooks/pre-commit', '.githooks/pre-push']) {
+    check(`the current ${owned} is listed in known-versions.txt`, read(knownFile).includes(`${fingerprint(read(path.join(assets, owned)))} ${owned}`),
+        `add: ${fingerprint(read(path.join(assets, owned)))} ${owned}`);
+}
+// A copy of the skill that also knows one invented "older release".
+const oldKit = path.join(work, 'old-kit');
+fs.cpSync(path.join(kit, 'skills', 'kit-new-project'), oldKit, { recursive: true });
+const released = '#!/bin/sh\n# an older release\nexit 0\n';
+fs.appendFileSync(path.join(oldKit, 'assets', 'known-versions.txt'), `${fingerprint(released)} .ai-kit/scan-secrets.sh\n`);
+const upgrade = path.join(oldKit, 'scripts', 'setup-project.mjs');
 const oldScanner = path.join(older, '.ai-kit', 'scan-secrets.sh');
+const hookFile = path.join(older, '.githooks', 'pre-commit');
 const currentScanner = read(path.join(assets, '.ai-kit', 'scan-secrets.sh'));
-put(oldScanner, '#!/bin/sh\nexit 0\n');
-r = node(setup, older, '--update');
-check('--update keeps a scanner that git cannot restore', r.code === 0 && read(oldScanner) === '#!/bin/sh\nexit 0\n' && r.out.includes('NOT updated'), r.out);
-git(older, 'add', '-A');
-git(older, 'commit', '--quiet', '--no-verify', '-m', 'old scanner');
+put(oldScanner, released.replace(/\n/g, '\r\n'));
 put(path.join(older, '.ai-kit', 'checks.sh'), 'custom checks\n');
-r = node(setup, older);
-check('setup without --update keeps the old scanner', read(oldScanner) === '#!/bin/sh\nexit 0\n', r.out);
-r = node(setup, older, '--update');
-check('--update replaces a committed old scanner', r.code === 0 && read(oldScanner).replace(/\r/g, '') === currentScanner.replace(/\r/g, ''), r.out);
+const customHook = `${read(hookFile)}# my own extra check\n`;
+put(hookFile, customHook);
+git(older, 'add', '-A');
+git(older, 'commit', '--quiet', '--no-verify', '-m', 'old scanner and custom hook');
+r = node(upgrade, older);
+check('setup without --update keeps the old scanner', read(oldScanner) === released.replace(/\n/g, '\r\n'), r.out);
+r = node(upgrade, older, '--update');
+check('--update replaces an unchanged older release', lf(read(oldScanner)) === lf(currentScanner), r.out);
+check('--update keeps a customized hook, even when committed', r.code === 1 && read(hookFile) === customHook && r.out.includes('.githooks/pre-commit was customized'), r.out);
 check('--update leaves project-owned files alone', read(path.join(older, '.ai-kit', 'checks.sh')) === 'custom checks\n');
 check('setup does not ask to fill checks that are already configured', !r.out.includes('fill .ai-kit/checks.sh'), r.out);
+
+// ---------- Secret files ----------
+function freshRepo(name) {
+    const dir = path.join(work, name);
+    fs.mkdirSync(dir);
+    git(dir, 'init', '--quiet', '-b', 'main');
+    git(dir, 'config', 'user.email', 'test@example.invalid');
+    git(dir, 'config', 'user.name', 'kit test');
+    return dir;
+}
+const negated = freshRepo('negated');
+put(path.join(negated, '.gitignore'), '.env\n!.env\n!.env.*\n');
+r = node(setup, negated);
+const ignored = (name) => git(negated, 'check-ignore', '--no-index', '-q', name).code === 0;
+check('setup repairs a rule that exposed .env', r.code === 0 && ignored('.env') && ignored('.env.local') && !ignored('.env.example'), r.out);
+const nestedRule = freshRepo('nested-rule');
+put(path.join(nestedRule, '.gitignore'), '');
+put(path.join(nestedRule, 'app', '.env'), 'A=1\n');
+git(nestedRule, 'add', '-f', 'app/.env');
+git(nestedRule, 'commit', '--quiet', '-m', 'tracked secret file');
+r = node(setup, nestedRule);
+check('setup reports an already tracked secret file and fails', r.code === 1 && r.out.includes('already tracked') && r.out.includes('app/.env'), r.out);
+check('setup does not remove the tracked file itself', git(nestedRule, 'ls-files', 'app/.env').out.trim() === 'app/.env');
+
 
 // ---------- Installer ----------
 const install = path.join(kit, 'install.mjs');
@@ -397,6 +441,17 @@ r = git(fakeKit, 'ls-files');
 check('the kit repository never includes the taste library', !r.out.includes('taste/'), r.out);
 check('the real kit ignores taste/', read(path.join(kit, '.gitignore')).split(/\r?\n/).includes('/taste/'));
 check('taste setup refuses a folder that is not the kit', node(initTaste, empty).code === 1);
+const leaky = freshRepo('leaky kit');
+put(path.join(leaky, 'AGENTS.md'), 'rules\n');
+put(path.join(leaky, 'taste', 'private.md'), 'mine\n');
+git(leaky, 'add', '-A');
+git(leaky, 'commit', '--quiet', '-m', 'tracked taste');
+r = node(initTaste, leaky);
+check('taste setup stops when the kit tracks taste files', r.code === 1 && r.out.includes('taste/private.md') && !has(leaky, 'taste', 'principles.md'), r.out);
+git(leaky, 'rm', '-r', '--quiet', '--cached', 'taste');
+git(leaky, 'commit', '--quiet', '-m', 'untrack');
+r = node(initTaste, leaky);
+check('taste setup warns about taste files in history', r.code === 0 && r.out.includes('appears in the kit history'), r.out);
 
 // ---------- Design check ----------
 const designCheck = path.join(kit, 'skills', 'kit-design', 'scripts', 'design-check.mjs');
@@ -421,6 +476,43 @@ put(path.join(ui, 'src', 'card.module.css'), '.card { color: #ff0000; }\n.b { ba
 r = node(designCheck, '--source', path.join(ui, 'src'), '--tokens', path.join(ui, 'src', 'tokens.css'));
 check('design check reports literal colors outside the token file', r.code === 1 && r.out.includes('card.module.css:1') && r.out.includes('card.module.css:2'), r.out);
 check('design check refuses remote pages', node(designCheck, 'https://example.com').code === 2);
+check('design check refuses a missing token file', node(designCheck, '--source', path.join(ui, 'src'), '--tokens', path.join(ui, 'none.css')).code === 2);
+
+const colors = path.join(work, 'colors');
+put(path.join(colors, 'tokens.css'), ':root { --red: #f00; }\n');
+const mustFind = {
+    'a.tsx': 'const a = "bg-[#ff0000]";',
+    'b.tsx': 'const b = "#fff";',
+    'c.tsx': 'const c = <i style={{ color: "red" }} />;',
+    'd.tsx': 'const d = <i className="p-2 text-red-500" />;',
+    'e.tsx': 'const e = <i className="hover:bg-white" />;',
+    'f.tsx': 'const f = <path fill="tomato" />;',
+    'g.css': '.g { color: red; }',
+    'h.css': '.h { border: 1px solid rebeccapurple; }',
+    'i.css': '.i { color: color(display-p3 1 0 0); }',
+    'j.css': '.j { color: hwb(0 0% 0%); }',
+    'k.css': '.k {\n  background: linear-gradient(\n    var(--a),\n    #abc 50%\n  );\n}',
+    'l.scss': '$brand: navy;',
+    'm.html': '<style>\n.m { color: #123456 }\n</style>',
+    'n.tsx': 'const n = <div style="outline-color: #0f0" />;',
+    'o.tsx': 'const o = { boxShadow: "0 0 2px #000" };',
+    'p.tsx': 'const p = styled.div`\n  color: crimson;\n`;',
+};
+const mustIgnore = {
+    'ok1.css': '#add { color: var(--red); }\n#bad:hover .x { margin: 0 }',
+    'ok2.css': '.a { color: transparent; border-color: currentColor; white-space: nowrap; }\n/* color: red */',
+    'ok3.css': '.gold { font-family: "Gold"; background: url(red.png); }',
+    'ok4.tsx': 'const a = <a href="#add" id="#bed">red team</a>; document.querySelector("#fab");',
+    'ok5.tsx': '// color: "red"\nconst status = "green"; const c = "text-sm border-2 bg-surface text-primary";',
+    'ok6.tsx': 'const s = { color: "var(--red)" };',
+};
+for (const [name, content] of Object.entries(mustFind)) put(path.join(colors, 'bad', name), content + '\n');
+for (const [name, content] of Object.entries(mustIgnore)) put(path.join(colors, 'good', name), content + '\n');
+r = node(designCheck, '--source', path.join(colors, 'bad'), '--tokens', path.join(colors, 'tokens.css'));
+for (const name of Object.keys(mustFind)) check(`color check finds the color in ${name}`, r.out.includes(`${name}:`), r.out);
+check('color check reports the right line of a multi-line value', r.out.includes('k.css:4') && r.out.includes('m.html:2'), r.out);
+r = node(designCheck, '--source', path.join(colors, 'good'), '--tokens', path.join(colors, 'tokens.css'));
+check('color check ignores selectors, anchors, keywords, comments and tokens', r.code === 0, r.out);
 
 const shots = path.join(ui, 'shots');
 r = node(designCheck, good, '--out', shots);
@@ -428,7 +520,16 @@ if (r.code === 3) {
     console.log(`SKIP  design check in a browser: ${r.out.trim()}`);
 } else {
     check('design check passes a clean page', r.code === 0 && r.out.includes('0 failure(s)'), r.out);
-    check('design check saves phone and desktop screenshots', fs.readdirSync(shots).filter((n) => n.endsWith('.png')).length === 2);
+    check('design check saves phone, tablet and desktop screenshots', fs.readdirSync(shots).filter((n) => n.endsWith('.png')).length === 3);
+    const broken = path.join(ui, 'broken.html');
+    put(broken, `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
+<body><img src="missing-picture.png" alt="x"><script src="missing-script.js"></script>
+<script>console.error('boom-console'); throw new Error('boom-thrown');</script></body></html>`);
+    r = node(designCheck, broken, '--out', path.join(ui, 'broken-shots'));
+    for (const [what, text] of Object.entries({
+        'a thrown JavaScript error': 'boom-thrown', 'a console error': 'boom-console',
+        'a broken image': 'image failed to load', 'a script that did not load': 'missing-script.js',
+    })) check(`design check finds: ${what}`, r.code === 1 && r.out.includes(text), r.out);
     r = node(designCheck, bad, '--out', path.join(ui, 'bad-shots'));
     check('design check fails a bad page', r.code === 1, r.out);
     const findings = {
@@ -455,12 +556,12 @@ body{margin:0;background:#fff} .bar{height:40px;background:rgb(255,0,0)} .end{he
 <body><div class="bar"></div><div style="height:${filler}px"></div><div class="end"></div></body></html>`);
         const out = path.join(ui, `rtl-shots-${kind}`);
         r = node(designCheck, page, '--out', out);
-        for (const label of ['mobile', 'desktop']) {
+        for (const label of ['mobile', 'tablet', 'desktop']) {
             const image = readPng(path.join(out, `1-rtl-${kind}-${label}.png`));
             const edges = [image.pixel(1, 10), image.pixel(image.width - 2, 10)];
             const bottom = image.pixel(Math.floor(image.width / 2), 40 + filler + 10);
             check(`${kind} right-to-left ${label} screenshot is complete`,
-                image.width === (label === 'mobile' ? 360 : 1280) && edges.every((c) => c === '255,0,0') && bottom === '0,0,255',
+                image.width === { mobile: 360, tablet: 768, desktop: 1280 }[label] && edges.every((c) => c === '255,0,0') && bottom === '0,0,255',
                 `${image.width}x${image.height} edges=${edges.join(' | ')} bottom=${bottom}`);
         }
     }
