@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.6 - 2026-11-26
+Fixes from a trial design task (`docs/ISSUES.md`, KI-012 and KI-016), not yet confirmed by a later task:
+- `kit-design` sends a numbered checklist with every design: taste, references opened, directions, design check states, and the nine judge questions.
+- The design check claims only the states it ran, including busy error states.
+- Every verification adds a row to the project's visual verification table, adding a missing column first.
+
 ## 0.4.5 - 2026-11-26
 Fixes from a trial review (`docs/ISSUES.md`, KI-006 and KI-011), not yet confirmed by a later task:
 - The core rules require the full delivery report, also for fixes after a review.

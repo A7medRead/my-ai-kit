@@ -55,7 +55,7 @@ When the taste library has examples, two directions build on it (say which) and 
 ## Self-review (required before showing any design)
 Applies to mockups and to built screens. The user should receive a design that already passed this.
 
-1. **Measure:** run `node scripts/design-check.mjs <page>... --out <folder>` from this skill's folder. Reach later states with `--before "<js>"`; for built code add `--source <dir> --tokens <file>`. Fix every `FAIL`, fix or justify every `WARN`, and run it again. Exit code 3 means nothing was verified: say so.
+1. **Measure:** run `node scripts/design-check.mjs <page>... --out <folder>` from this skill's folder. Reach later states with `--before "<js>"`; for built code add `--source <dir> --tokens <file>`. Fix every `FAIL`, fix or justify every `WARN`, and run it again. Exit code 3 means nothing was verified: say so. Name the states the run covered and claim nothing about a state it did not run; include error states with the most content, such as several rows or fields.
 2. **Look** at every screenshot, at phone, tablet and desktop size, including the filled, error and finished states.
 3. **Judge**, answering each in writing with evidence:
    - In grayscale and one font, are the directions still different?
@@ -75,7 +75,12 @@ Report what was measured, what you judged yourself and what is unverified. A cle
 
 When the user rejects something for a reason that will come back, record it in `docs/LESSONS.md`; if it is their taste, offer to add it with `kit-taste`; if it is a mistake any project could repeat, suggest a kit rule.
 
-Also confirm: the required references are covered and each direction has a visual sample.
+**Checklist to send with the design.** Number the items and mark each "done" or say why not:
+1. Taste: the library was read; if it is empty or missing, the user was asked for likes and dislikes.
+2. References: the required ones are covered; say which you opened and looked at during this task.
+3. Directions: each has a visual sample (not needed when the direction is already approved: say so).
+4. Design check: the states and sizes it ran, with every `FAIL` fixed and every `WARN` fixed or justified.
+5. Judge: all nine questions above are answered in writing.
 
 ## 4. Wait for approval
 No application interface code before the user picks a direction.
@@ -105,6 +110,7 @@ When an approved mockup exists:
 - Report the list, or "none".
 
 ## 8. Record
+Add a row to the "Visual verification" table in `docs/DESIGN.md` for every verification of a mockup or built screen. Add a missing column (Mobile, Tablet, Desktop, Gaps) first.
 Add two lines to `design-history.md` (date, field, layout, fonts, palette character, signature element). No client names or private details: the kit may be published. If you cannot write there, give the user the lines.
 
 ## Anti-generic rules

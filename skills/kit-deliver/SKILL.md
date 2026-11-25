@@ -33,6 +33,7 @@ If the project has no kit docs, do not create them just to deliver; offer to set
 - `docs/DECISIONS.md`: only if a real decision was made.
 - `docs/LESSONS.md`: only if something should not be repeated.
 - `docs/ARCHITECTURE.md` / `docs/RUNBOOK.md`: only if structure or operation changed.
+- `docs/DESIGN.md`, for a task with a mockup or screen: a new row in the "Visual verification" table with Mobile, Tablet, Desktop and Gaps; add a missing column first.
 - `AGENTS.md` and `README.md`: when commands, prerequisites or the way to run the project changed.
 
 ## 4. Branch, then secret scan

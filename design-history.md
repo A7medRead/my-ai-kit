@@ -7,5 +7,8 @@ Every approved design, two lines each, newest first. Read before proposing a new
   fonts | palette character | signature element
 -->
 
+- 2026-11-26 | barber shop owner dashboard (Arabic, RTL) | chronological appointment list and sidebar navigation on desktop
+  Tajawal | warm off-white with deep maroon | barber pole masthead and visible cancellation states
+
 - 2026-11-25 | barber shop booking (Arabic, mobile) | step-by-step flow, sticky primary action
   Tajawal | warm off-white with deep maroon | barber pole in the header
