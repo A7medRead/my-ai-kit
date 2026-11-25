@@ -81,6 +81,7 @@ Start simple but organized (feature-based folders, UI separated from logic and d
 ## 12. User interfaces
 Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before its self-review passed; if it cannot be verified, label it an unverified draft that cannot be approved yet. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
 When a screen has an approved mockup, anything that differs from it, including a new element or state it does not show, needs the user's approval before the task is `done`.
+Before drawing a new design direction, read the taste library; if it is empty, ask for liked and disliked examples and wait. A design must look good, current and well organized, not only pass the checks.
 
 ## Skills
 | Skill | Use it when |

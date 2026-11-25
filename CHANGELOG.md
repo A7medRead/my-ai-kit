@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.7 - 2026-11-26
+Fixes from the user's review of a trial design that looked dated (`docs/ISSUES.md`, KI-017), not yet confirmed by a later design:
+- Taste examples are required before new directions are drawn, unless the user says to go ahead without them.
+- A quality bar for color, type, shape and finish; the three directions differ in shape language too.
+- A side-by-side visual comparison with the strongest examples before a design is shown.
+- Soft corners and shadows are allowed when they serve the design.
+
 ## 0.4.6 - 2026-11-26
 Fixes from a trial design task (`docs/ISSUES.md`, KI-012 and KI-016), not yet confirmed by a later task:
 - `kit-design` sends a numbered checklist with every design: taste, references opened, directions, design check states, and the nine judge questions.
