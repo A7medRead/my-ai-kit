@@ -115,6 +115,8 @@ function updateInstructions(file) {
             `${START} (managed by install.mjs: edit the kit, not this block) -->`,
             rules,
             '',
+            // Sessions load this block when they start, so it tells which rules a session really had.
+            `Kit version: ${fs.readFileSync(path.join(kit, 'VERSION'), 'utf8').trim()}`,
             `Kit folder: ${kit}`,
             `Design history: ${path.join(kit, 'design-history.md')}`,
             `Taste library (private): ${path.join(kit, 'taste')}`,

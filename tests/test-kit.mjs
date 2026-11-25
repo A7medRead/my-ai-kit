@@ -376,6 +376,7 @@ r = installer('--apply');
 check('install succeeds', r.code === 0, r.out);
 let text = read(codexFile);
 check('install keeps user text, including Arabic', text.startsWith(original) && text.includes('ai-kit:end'));
+check('installed rules name the kit version', text.includes(`Kit version: ${read(path.join(kit, 'VERSION')).trim()}`), text);
 check('install writes a backup', fs.readdirSync(path.dirname(codexFile)).filter((n) => n.startsWith('AGENTS.md.ai-kit-backup-')).length === 1);
 const expected = [
     '.claude/CLAUDE.md', '.gemini/GEMINI.md', '.copilot/copilot-instructions.md',

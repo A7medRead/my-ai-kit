@@ -20,13 +20,15 @@ For Medium and Large changes:
 - Name the evidence for each part of the task's "done when". A part without evidence means the task is not done.
 - When the evidence is a test, break the rule it covers for a moment, confirm the test fails, then restore and rerun. Do this locally with test data only and leave no change behind.
 - If you changed an existing test or assertion, confirm the same way that it still catches what it caught before.
+- Keep the evidence repeatable: commit the test and run it from `.ai-kit/checks.sh`. A manual check or temporary script is not a saved test: say so in the records and the report. Do not link files in build or temporary folders.
 
 If the task added a new kind of check (first tests, a new tool), add its command to `.ai-kit/checks.sh`.
 
 ## 3. Record, in the same commit
 If the project has no kit docs, do not create them just to deliver; offer to set them up. Follow each file's format.
 - `docs/PLAN.md`: update the task's `Status` and every "Current position" field (including the next step), and clear your "In progress" mark. Restore the fields or column if they are missing.
-- `docs/PROGRESS.md`: new entry at the top - date, task ID, what changed, what was tested, what was not. No commit hash; the task ID in the commit message links them.
+- `docs/PROGRESS.md`: new entry at the top - date, task ID, what changed, what was tested, what was not, and the kit version. No commit hash; the task ID in the commit message links them.
+- The kit version is the `Kit version` line in the global rules this session loaded, not the kit's `VERSION` file, which may be newer. If there is no such line, write `unknown`.
 - `docs/DECISIONS.md`: only if a real decision was made.
 - `docs/LESSONS.md`: only if something should not be repeated.
 - `docs/ARCHITECTURE.md` / `docs/RUNBOOK.md`: only if structure or operation changed.
@@ -79,5 +81,6 @@ Pushed:      yes / no (why)
 Tested:      ...
 Not tested:  ...
 Next:        <next task and its level>
+Kit:         <kit version, as in step 3>
 ```
 Send every line, in the user's language. Write `none` instead of dropping a line, and always give the next task's level.

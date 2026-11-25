@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.3 - 2026-11-26
+Fixes from the trial reviews (`docs/ISSUES.md`), not yet confirmed by a later task:
+- Installed rules name the kit version, and `kit-deliver` records it in the progress entry and the report.
+- `kit-deliver` evidence must be repeatable, or be reported as a manual or temporary check; `kit-review` reports evidence that is not saved.
+
 ## 0.4.2 - 2026-11-25
 Fixes from the trial reviews (`docs/ISSUES.md`), not yet confirmed by a later task:
 - `kit-design` compares built screens with the approved mockup state by state and lists every difference; `kit-review` repeats it.

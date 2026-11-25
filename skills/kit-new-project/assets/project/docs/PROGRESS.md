@@ -8,4 +8,5 @@ History only, newest first. Task status lives in `PLAN.md`.
 - Tested:
 - Not tested:
 - Notes:
+- Kit version:
 -->
