@@ -61,12 +61,18 @@ report() {
             if (($1 FS $2) in allowed) next
             value = $0
             sub(/^[^\t]*\t[^\t]*\t/, "", value)
+            original = value
             value = tolower(value)
             if (rule == "database-url-with-password") {
                 if (value ~ /@(localhost|127[.]0[.]0[.]1|\[::1\])(:[0-9]*)?$/) next
                 if (value ~ /:\/\/[^@]*([$][{]|<)[^@]*@/) next
             }
             if (rule == "hardcoded-credential") {
+                # A whole value such as env(OPENAI_API_KEY) names a variable and holds no secret.
+                reference = original
+                sub(/["\047]$/, "", reference)
+                sub(/^.*["\047]/, "", reference)
+                if (reference ~ /^env[(][A-Z][A-Z0-9_]*[)]$/) next
                 sub(/["\047]$/, "", value)
                 sub(/^.*["\047]/, "", value)
                 if (value ~ /example|changeme|change-me|your[_-]|placeholder|dummy|xxxx|[$][{]|<[a-z_ -]+>/) next

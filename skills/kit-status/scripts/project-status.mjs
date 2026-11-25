@@ -33,6 +33,12 @@ const show = (result) => {
     else if (result.out) console.log(result.out);
 };
 
+// Without its own repository, a project would silently report a parent folder's history.
+if (git(project, 'rev-parse', '--show-prefix').out) {
+    console.log(`WARNING: ${project} is inside a larger repository (${root}).`);
+    console.log('The history below belongs to that repository. If this folder is its own project, it needs "git init".');
+}
+
 section('Remote');
 if (noFetch) console.log('fetch skipped: remote state UNVERIFIED');
 else if (!git(root, 'remote').out) console.log('no remote configured');
@@ -55,8 +61,9 @@ if (!hasCommits) {
     show(git(root, 'stash', 'list'));
 }
 
+const docs = fs.existsSync(path.join(project, 'docs', 'PLAN.md')) ? project : root;
 const read = (relative) => {
-    const file = path.join(root, relative);
+    const file = path.join(docs, relative);
     return fs.existsSync(file) ? fs.readFileSync(file, 'utf8').replace(/<!--[\s\S]*?-->/g, '').split(/\r?\n/) : null;
 };
 
@@ -70,7 +77,7 @@ else {
         if (inside && line.trim()) console.log(line);
     }
     if (hasCommits) {
-        const planCommit = git(root, 'log', '-1', '--pretty=%H', '--', 'docs/PLAN.md').out;
+        const planCommit = git(docs, 'log', '-1', '--pretty=%H', '--', 'docs/PLAN.md').out;
         if (!planCommit) console.log('WARNING: PLAN.md has never been committed.');
         else {
             const after = git(root, 'log', '--date=short', '--pretty=%h %ad %s', `${planCommit}..HEAD`)

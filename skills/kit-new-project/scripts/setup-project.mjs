@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Adds the ai-kit files to a project and enables the secret-scan hooks. Never overwrites a file.
+// Adds the ai-kit files to a project and enables the secret-scan hooks. Never overwrites a file,
+// except that --update replaces the kit's own scanner and hooks when git can restore the old ones.
 // Run it once on every machine that clones the project: the hook setting is local to each clone.
-// Usage: node setup-project.mjs <project> [--include design,architecture,runbook]
+// Usage: node setup-project.mjs <project> [--include design,architecture,runbook] [--update]
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 const assets = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'project');
 const OPTIONAL = ['design', 'architecture', 'runbook'];
 const HOOKS = ['.githooks/pre-commit', '.githooks/pre-push'];
+// Files that projects are not expected to customize.
+const KIT_OWNED = ['.ai-kit/scan-secrets.sh', ...HOOKS];
 
 function stop(message) {
     console.error(message);
@@ -17,10 +20,12 @@ function stop(message) {
 }
 
 let target = '';
+let update = false;
 const extras = [];
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--include') {
+    if (args[i] === '--update') update = true;
+    else if (args[i] === '--include') {
         extras.push(...(args[++i] ?? '').split(','));
         while (OPTIONAL.includes(args[i + 1])) extras.push(args[++i]);
     } else if (args[i].startsWith('--') || target) stop(`Unexpected argument: ${args[i]}`);
@@ -41,9 +46,25 @@ const files = [
     ...chosen.map((extra) => `docs/${extra.toUpperCase()}.md`),
 ];
 
+const git = (...parameters) => spawnSync('git', ['-C', project, ...parameters], { encoding: 'utf8' });
+const sameText = (a, b) => fs.readFileSync(a, 'utf8').replace(/\r\n/g, '\n') === fs.readFileSync(b, 'utf8').replace(/\r\n/g, '\n');
+// True only when the file is committed and unchanged, so the old version stays recoverable.
+const restorable = (relative) =>
+    git('cat-file', '-e', `HEAD:./${relative}`).status === 0 && git('diff', '--quiet', 'HEAD', '--', relative).status === 0;
+
 for (const relative of files) {
     const destination = path.join(project, relative);
     if (fs.existsSync(destination)) {
+        const source = path.join(assets, relative);
+        if (update && KIT_OWNED.includes(relative) && !sameText(source, destination)) {
+            if (restorable(relative)) {
+                fs.copyFileSync(source, destination);
+                console.log(`replaced      : ${relative} (previous version is in git; review and commit)`);
+            } else {
+                console.log(`NOT updated   : ${relative} has no committed copy or has uncommitted changes.`);
+            }
+            continue;
+        }
         console.log(`kept existing : ${relative}`);
         continue;
     }
@@ -73,7 +94,6 @@ if (!fs.existsSync(path.join(project, '.git'))) {
     process.exit(0);
 }
 
-const git = (...parameters) => spawnSync('git', ['-C', project, ...parameters], { encoding: 'utf8' });
 const current = git('config', '--get', 'core.hooksPath').stdout?.trim();
 const hooksResult = git('rev-parse', '--git-path', 'hooks');
 if (hooksResult.status !== 0) stop('git failed; hooks are NOT enabled.');
@@ -100,4 +120,6 @@ if (current !== '.githooks') {
 }
 console.log('hooks         : enabled (core.hooksPath=.githooks)');
 console.log('NOTE: run this script again after cloning the project on another machine.');
-console.log('NOTE: fill .ai-kit/checks.sh; until then CI fails on purpose.');
+if (fs.readFileSync(path.join(project, '.ai-kit/checks.sh'), 'utf8').includes('not configured')) {
+    console.log('NOTE: fill .ai-kit/checks.sh; until then CI fails on purpose.');
+}

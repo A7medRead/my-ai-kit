@@ -1,6 +1,6 @@
 # Plan
 
-This is the only place that holds task status.
+This is the only place that holds task status. Keep the "Current position" fields and the table columns when filling this in.
 
 ## Current position
 - Updated: <YYYY-MM-DD>

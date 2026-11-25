@@ -8,7 +8,8 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 - **No assumptions:** if missing information changes the result, ask. State any minor assumption you make.
 
 ## 2. Understand before building
-- For a new project, a new major feature, or your first time in an existing project: use `kit-new-project`. No code before the plan is approved.
+- For a new project or a new major feature: use `kit-new-project`. No code before the plan is approved.
+- In an existing project you do not know, read what you need first. A small requested change then proceeds without a plan.
 - Choose tools by what this project needs, not by habit. Give the reason and at least one alternative, and check current official docs instead of relying on memory.
 - **Reuse first:** search the existing code before writing new code. Do not duplicate.
 - **Keep it simple:** the simplest correct solution that can grow. No speculative complexity.
@@ -23,6 +24,7 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 ## 4. Scope
 - Do what was asked. Suggest other improvements; do not apply them.
 - **Preserve changes:** never discard or overwrite work by the user or another AI. Check `git status` before editing.
+- **Right repository:** before committing, confirm `git rev-parse --show-toplevel` is this project's folder. If it is a parent folder holding other work, do not commit there; tell the user.
 - **Backward compatibility:** do not break working behavior while adding new behavior.
 - **Dependencies:** add a library or service only for a clear reason; check that it is maintained and has no known serious vulnerability.
 - **Cost:** never enable a paid service or API without approval. State the price now and at higher usage.
@@ -54,12 +56,12 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 When a task is finished, use `kit-deliver`:
 - Code comments explain **why**, not what the line says. Commit messages say what changed and why.
 - Update the project docs in the same commit as the code.
-- Commit, then push automatically **only if** all hold: the checks for this change level passed, the branch is not `main`/`master`, and the secret scan passed. Otherwise do not push, and say why.
-- Never merge. The user merges.
+- Commit, then push automatically **only if** all hold: the checks for this change level passed, the branch is not `main`/`master`, the secret scan passed, and the push does not deploy to production. Otherwise do not push, and say why.
+- Never merge on your own. Merge only when the user explicitly approves that merge, after the full checks pass.
 
 ## 9. Status and learning
 - When asked where the project stands, use `kit-status`. Never answer from memory or from a docs file alone.
-- When the user corrects you, add a short rule to `docs/LESSONS.md`. Read that file before starting a task.
+- When the user corrects you, add a short rule to `docs/LESSONS.md`. Read that file before starting a task. If the correction applies to every project, also suggest adding it to the kit.
 
 ## 10. Security (mandatory)
 - No secrets in code, logs or git. Use environment variables; keep `.env` ignored.
@@ -73,7 +75,7 @@ When a task is finished, use `kit-deliver`:
 Start simple but organized (feature-based folders, UI separated from logic and data access, config outside code, database migrations). When you see growth signs (very large files, third copy of the same code, one change touching unrelated places, fixes breaking other things, a new unplanned requirement), warn the user and propose a step-by-step change with `kit-health-check`. Do not restructure on your own, and never rewrite a project from scratch without approval.
 
 ## 12. User interfaces
-Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project.
+Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before its self-review passed. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
 
 ## Skills
 | Skill | Use it when |
@@ -82,6 +84,7 @@ Any new UI or redesign goes through `kit-design`. Small UI edits follow the exis
 | `kit-deliver` | A task is finished and must be checked, recorded, committed and pushed |
 | `kit-status` | "Where are we?", resuming, or taking over from another session or AI |
 | `kit-design` | Designing or redesigning an interface |
+| `kit-taste` | The user shares a design they like or dislike |
 | `kit-security` | Sensitive changes, security review, before deployment |
 | `kit-debug` | Something is broken or behaving unexpectedly |
 | `kit-review` | Reviewing changes, especially work by another model |

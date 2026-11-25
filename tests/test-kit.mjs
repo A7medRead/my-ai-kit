@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 
 const kit = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-kit-test-'));
@@ -42,6 +43,36 @@ if (process.platform === 'win32') {
     sh = path.resolve(execPath, '..', '..', '..', 'bin', 'sh.exe');
 }
 console.log(`platform: ${process.platform}, node ${process.version}, ${git(work, '--version').out.trim()}`);
+
+// Minimal reader for the 8-bit, non-interlaced PNG files a browser screenshot produces.
+function readPng(file) {
+    const data = fs.readFileSync(file);
+    const width = data.readUInt32BE(16);
+    const height = data.readUInt32BE(20);
+    const channels = data[25] === 6 ? 4 : 3;
+    const parts = [];
+    for (let at = 8; at < data.length; at += data.readUInt32BE(at) + 12) {
+        if (data.toString('latin1', at + 4, at + 8) === 'IDAT') parts.push(data.subarray(at + 8, at + 8 + data.readUInt32BE(at)));
+    }
+    const raw = inflateSync(Buffer.concat(parts));
+    const stride = width * channels;
+    const pixels = Buffer.alloc(stride * height);
+    for (let y = 0; y < height; y++) {
+        const filter = raw[y * (stride + 1)];
+        for (let x = 0; x < stride; x++) {
+            const left = x >= channels ? pixels[y * stride + x - channels] : 0;
+            const up = y > 0 ? pixels[(y - 1) * stride + x] : 0;
+            const corner = y > 0 && x >= channels ? pixels[(y - 1) * stride + x - channels] : 0;
+            const guess = left + up - corner;
+            const [a, b, c] = [left, up, corner].map((v) => Math.abs(guess - v));
+            const paeth = a <= b && a <= c ? left : b <= c ? up : corner;
+            const predicted = [0, left, up, (left + up) >> 1, paeth][filter];
+            pixels[y * stride + x] = (raw[y * (stride + 1) + 1 + x] + predicted) & 255;
+        }
+    }
+    const pixel = (x, y) => (y < height ? [...pixels.subarray(y * stride + x * channels, y * stride + x * channels + 3)].join(',') : 'outside');
+    return { width, height, pixel };
+}
 
 // ---------- Skills ----------
 for (const name of fs.readdirSync(path.join(kit, 'skills'))) {
@@ -150,6 +181,18 @@ attempt('a database host that only starts with localhost', {
 if (process.platform !== 'win32') {
     attempt('a file whose name contains the allow marker', { '# ai-kit:allow-secret example.txt': line });
 }
+// Only a whole env(UPPER_CASE_NAME) value is a variable reference.
+attempt('a password wrapped to look like a lower-case env reference', { 'r.toml': 'password = "env(' + 'hunter2hunter2' + ')"\n' });
+attempt('a secret appended to an env reference', { 's.toml': 'secret = "env(NAME)' + 'hunter2hunter2' + '"\n' });
+attempt('a secret before an env reference', { 't.toml': 'token = "' + 'hunter2' + 'env(LONG_NAME)"\n' });
+attempt('a real secret on the same line as an env reference', { 'u.toml': 'secret = "env(SECRET_VALUE)" ' + fake.password + '\n' });
+attempt('a known token format inside env()', { 'v.toml': 'secret = "env(' + 'AKIA' + 'Q'.repeat(16) + ')"\n' });
+put(path.join(project, 'refs.toml'),
+    'openai_api_key = "env(OPENAI_API_KEY)"\nauth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"\n' +
+    '# secret_key = "env(SECRET_VALUE)"\ns3_secret_key = \'env(S3_SECRET_KEY)\'\n');
+git(project, 'add', '-A');
+r = git(project, 'commit', '-m', 'environment references');
+check('allows env(NAME) variable references', r.code === 0, r.out);
 put(path.join(project, 'image.bin'), Buffer.from([0, 1, 2, 255, 0, 10, 0, 200]));
 put(path.join(project, 'empty.txt'), '');
 put(path.join(project, 'allowed.py'), fake.password + '  # ai-kit:allow-secret\n');
@@ -246,6 +289,34 @@ git(empty, 'init', '--quiet');
 r = node(status, empty);
 check('status handles a repository without commits', r.code === 0 && r.out.includes('no commits yet'), r.out);
 
+check('status gives no parent warning at a repository root', !r.out.includes('inside a larger repository'), r.out);
+const nested = path.join(project, 'nested app');
+fs.mkdirSync(nested);
+r = node(status, nested);
+check('status warns when a folder has no repository of its own', r.code === 0 && r.out.includes('inside a larger repository'), r.out);
+
+// ---------- Updating an older project ----------
+const older = path.join(work, 'older');
+fs.mkdirSync(older);
+git(older, 'init', '--quiet', '-b', 'main');
+git(older, 'config', 'user.email', 'test@example.invalid');
+git(older, 'config', 'user.name', 'kit test');
+node(setup, older);
+const oldScanner = path.join(older, '.ai-kit', 'scan-secrets.sh');
+const currentScanner = read(path.join(assets, '.ai-kit', 'scan-secrets.sh'));
+put(oldScanner, '#!/bin/sh\nexit 0\n');
+r = node(setup, older, '--update');
+check('--update keeps a scanner that git cannot restore', r.code === 0 && read(oldScanner) === '#!/bin/sh\nexit 0\n' && r.out.includes('NOT updated'), r.out);
+git(older, 'add', '-A');
+git(older, 'commit', '--quiet', '--no-verify', '-m', 'old scanner');
+put(path.join(older, '.ai-kit', 'checks.sh'), 'custom checks\n');
+r = node(setup, older);
+check('setup without --update keeps the old scanner', read(oldScanner) === '#!/bin/sh\nexit 0\n', r.out);
+r = node(setup, older, '--update');
+check('--update replaces a committed old scanner', r.code === 0 && read(oldScanner).replace(/\r/g, '') === currentScanner.replace(/\r/g, ''), r.out);
+check('--update leaves project-owned files alone', read(path.join(older, '.ai-kit', 'checks.sh')) === 'custom checks\n');
+check('setup does not ask to fill checks that are already configured', !r.out.includes('fill .ai-kit/checks.sh'), r.out);
+
 // ---------- Installer ----------
 const install = path.join(kit, 'install.mjs');
 const home = path.join(work, 'home');
@@ -310,6 +381,90 @@ fs.writeFileSync(claudeFile, utf16);
 r = installer('--apply', '--tools', 'claude');
 check('a non-UTF-8 instruction file is left untouched', r.code === 1 && fs.readFileSync(claudeFile).equals(utf16), r.out);
 check('unknown tool is rejected', installer('--tools', 'nope').code === 2);
+
+// ---------- Taste library ----------
+const initTaste = path.join(kit, 'skills', 'kit-taste', 'scripts', 'init-taste.mjs');
+const fakeKit = path.join(work, 'fake kit');
+put(path.join(fakeKit, 'AGENTS.md'), 'rules\n');
+git(fakeKit, 'init', '--quiet', '-b', 'main');
+r = node(initTaste, fakeKit);
+check('taste library is created with its own repository', r.code === 0 && has(fakeKit, 'taste', 'principles.md') && has(fakeKit, 'taste', 'index.md') && has(fakeKit, 'taste', '.git'), r.out);
+put(path.join(fakeKit, 'taste', 'principles.md'), 'my taste\n');
+r = node(initTaste, fakeKit);
+check('taste setup never overwrites', r.code === 0 && read(path.join(fakeKit, 'taste', 'principles.md')) === 'my taste\n' && read(path.join(fakeKit, '.gitignore')).split('\n').filter((l) => l === '/taste/').length === 1, r.out);
+git(fakeKit, 'add', '-A');
+r = git(fakeKit, 'ls-files');
+check('the kit repository never includes the taste library', !r.out.includes('taste/'), r.out);
+check('the real kit ignores taste/', read(path.join(kit, '.gitignore')).split(/\r?\n/).includes('/taste/'));
+check('taste setup refuses a folder that is not the kit', node(initTaste, empty).code === 1);
+
+// ---------- Design check ----------
+const designCheck = path.join(kit, 'skills', 'kit-design', 'scripts', 'design-check.mjs');
+const ui = path.join(work, 'ui');
+const bad = path.join(ui, 'bad.html');
+const good = path.join(ui, 'good.html');
+put(bad, `<!doctype html><html lang="ar"><head><meta charset="utf-8"><style>
+body{margin:0;background:#fff} .faint{color:#bbb} .wide{width:900px;height:10px}
+.tiny{width:16px;height:16px;padding:0} .same,.same:disabled{color:#111;background:#eee;border:1px solid #333;width:120px;height:48px}
+</style></head><body><p class="faint">faint text</p><div class="wide"></div><button class="tiny"></button>
+<button class="same" disabled>next</button><s>٥:٠٠</s><img src="data:,"><input type="text">
+<div style="height:900px"></div><button type="submit" class="same">send</button></body></html>`);
+put(good, `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
+body{margin:0;padding:16px;background:#fff;color:#111} button{min-width:120px;height:48px;background:#123;color:#fff;border:2px solid #123}
+button:disabled{background:#fff;color:#666;border-style:dashed} input{height:48px;border:2px solid #555}
+</style></head><body><h1>title</h1><label>name <input type="text"></label><button type="submit" disabled>send</button></body></html>`);
+put(path.join(ui, 'src', 'tokens.css'), ':root { --text: #111111; }\n');
+put(path.join(ui, 'src', 'ok.tsx'), 'export const A = () => <a href="#faq" style={{ color: "var(--text)" }}>x</a>;\n');
+r = node(designCheck, '--source', path.join(ui, 'src'), '--tokens', path.join(ui, 'src', 'tokens.css'));
+check('design check accepts colors kept in the token file', r.code === 0, r.out);
+put(path.join(ui, 'src', 'card.module.css'), '.card { color: #ff0000; }\n.b { background: rgb(0, 0, 0); }\n');
+r = node(designCheck, '--source', path.join(ui, 'src'), '--tokens', path.join(ui, 'src', 'tokens.css'));
+check('design check reports literal colors outside the token file', r.code === 1 && r.out.includes('card.module.css:1') && r.out.includes('card.module.css:2'), r.out);
+check('design check refuses remote pages', node(designCheck, 'https://example.com').code === 2);
+
+const shots = path.join(ui, 'shots');
+r = node(designCheck, good, '--out', shots);
+if (r.code === 3) {
+    console.log(`SKIP  design check in a browser: ${r.out.trim()}`);
+} else {
+    check('design check passes a clean page', r.code === 0 && r.out.includes('0 failure(s)'), r.out);
+    check('design check saves phone and desktop screenshots', fs.readdirSync(shots).filter((n) => n.endsWith('.png')).length === 2);
+    r = node(designCheck, bad, '--out', path.join(ui, 'bad-shots'));
+    check('design check fails a bad page', r.code === 1, r.out);
+    const findings = {
+        'viewport meta': 'missing <meta name="viewport">',
+        'right-to-left': 'without right-to-left direction',
+        overflow: 'horizontal overflow',
+        contrast: 'text contrast',
+        'small target': 'target smaller than 24px',
+        'disabled look': 'disabled control looks the same as enabled',
+        'struck zero': 'line-through over an Arabic-Indic zero',
+        'image alt': 'image without alt',
+        'field label': 'field without a label',
+        'hidden primary action': 'primary action is below the first screen',
+    };
+    for (const [what, text] of Object.entries(findings)) check(`design check finds: ${what}`, r.out.includes(text), r.out);
+    r = node(designCheck, good, '--before', 'document.querySelector("h1").style.color = "#ddd"', '--out', shots);
+    check('design check measures the state reached by --before', r.code === 1 && r.out.includes('text contrast'), r.out);
+
+    // Right-to-left screenshots must show the full width, on short and on tall pages.
+    for (const [kind, filler] of [['short', 0], ['tall', 1500]]) {
+        const page = path.join(ui, `rtl-${kind}.html`);
+        put(page, `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>
+body{margin:0;background:#fff} .bar{height:40px;background:rgb(255,0,0)} .end{height:40px;background:rgb(0,0,255)}</style></head>
+<body><div class="bar"></div><div style="height:${filler}px"></div><div class="end"></div></body></html>`);
+        const out = path.join(ui, `rtl-shots-${kind}`);
+        r = node(designCheck, page, '--out', out);
+        for (const label of ['mobile', 'desktop']) {
+            const image = readPng(path.join(out, `1-rtl-${kind}-${label}.png`));
+            const edges = [image.pixel(1, 10), image.pixel(image.width - 2, 10)];
+            const bottom = image.pixel(Math.floor(image.width / 2), 40 + filler + 10);
+            check(`${kind} right-to-left ${label} screenshot is complete`,
+                image.width === (label === 'mobile' ? 360 : 1280) && edges.every((c) => c === '255,0,0') && bottom === '0,0,255',
+                `${image.width}x${image.height} edges=${edges.join(' | ')} bottom=${bottom}`);
+        }
+    }
+}
 
 // ---------- Cleanup ----------
 fs.rmSync(work, { recursive: true, force: true, maxRetries: 3 });

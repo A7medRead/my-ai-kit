@@ -117,6 +117,7 @@ function updateInstructions(file) {
             '',
             `Kit folder: ${kit}`,
             `Design history: ${path.join(kit, 'design-history.md')}`,
+            `Taste library (private): ${path.join(kit, 'taste')}`,
             END,
         ].join('\n').replace(/\r\n/g, '\n').replace(/\n/g, newline);
         if (starts === 1) next = old.slice(0, from) + block + old.slice(to + END.length);

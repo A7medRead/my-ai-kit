@@ -8,7 +8,9 @@ description: "Use before writing code when starting a new project or major featu
 Output of this skill is an approved plan. No feature code before approval.
 
 ## 1. Understand
+- Check that the folder is its own git repository (`git rev-parse --show-toplevel`). If it is not, or it belongs to a parent repository, say so; run `git init` in it after approval.
 - Goal, target users, platforms, languages (Arabic/RTL?), must-have features, what is explicitly out of scope.
+- For each kind of user, list what they can create, view, change and cancel, including what an owner or admin must manage. Each item ends up in a task or is marked out of scope.
 - Constraints: budget, hosting, deadline, existing accounts or services.
 - Sensitive areas: accounts, payments, personal data.
 - Expected growth.
@@ -19,19 +21,22 @@ Ask only questions whose answers change the plan, grouped in one message.
 
 ## 2. Choose tools
 For each major choice (framework, database, auth, hosting, key libraries):
-- The requirement it serves, the choice, why, at least one alternative, and why not the alternative.
+- The requirement it serves, the choice, why, at least one alternative, and why not each alternative.
 - Current stable version checked in official docs. If you cannot check, say so.
-- Cost now and at higher usage; free-tier limits.
+- Cost now and at higher usage; free-tier limits, including whether backups are included when data is stored.
+- What must be installed or registered first (runtimes, Docker, accounts). Check what is already available.
+
+Also name a simpler or cheaper way to meet the whole goal, and what it gives up.
 
 Include automation, animation or 3D when they help this project, with benefit and cost.
 
 ## 3. Plan
 Present briefly in the chat:
 1. Understanding, in a few lines.
-2. Tool choices and costs.
+2. Tool choices, costs and prerequisites.
 3. Structure: folders by feature; UI, business logic and data access separated; config outside code; migrations.
 4. Conventions (see below).
-5. Security needs.
+5. Security needs, including how public actions can be abused or fail (fake or repeated submissions, simultaneous requests, unverified identity) and the defense for each.
 6. Phases, each ending in something usable, split into small tasks (see below). Each task has an ID (`T-001`), a level (`Low`/`Medium`/`High`) and a "done when" line.
 7. Which checks run for this stack.
 8. Open questions and risks.
@@ -55,19 +60,30 @@ Write the approved conventions into the project `AGENTS.md`.
 - A `High` task is a signal to look for a further split.
 - "Done when" names observable evidence (a passing test, a screen checked, an approval).
 
+### Tasks every plan needs
+- First: scaffold the project and make its checks run.
+- With a UI: a design task (`kit-design`) that is done when the user approves one of three researched directions. The plan may suggest fonts and colors; they are decided there.
+- Each defense from item 5, inside a feature task or as its own.
+- A security review (`kit-security`) before release or trial sign-off.
+- Deployment with backup and rollback (`kit-deploy`), or state that it is deferred.
+
 Level guide: `High` = architecture, security, hard bugs; `Medium` = normal features; `Low` = text, styling, repetitive work.
 
-**Wait for approval.**
+**Wait for approval.** If the user asks for changes, show the revised plan and wait again.
 
 ## 4. Set up (after approval)
 - Run `node scripts/setup-project.mjs <project>` from this skill's folder (macOS, Windows, Linux). Add `--include design` for projects with a UI, and `architecture`, `runbook` when needed. It never overwrites existing files.
 - Without Node: copy the files from `assets/project/` without overwriting anything, make `.githooks/*` executable (`git update-index --add --chmod=+x`), and set `git config core.hooksPath .githooks`.
 - Run the setup again after cloning the project on another machine; the hook setting is local to each clone.
-- Fill the placeholders in the project `AGENTS.md` and `docs/PLAN.md`; record tool choices in `docs/DECISIONS.md`.
+- Fill the placeholders in the project `AGENTS.md` and `docs/PLAN.md`; record tool choices in `docs/DECISIONS.md`. Keep the structure of every template: headings, fields, table columns and entry formats. `PLAN.md` keeps all "Current position" fields and a `Status` for each task.
 - Merge by hand any file that already existed.
 - Put the real lint, type check, test, build and dependency audit commands in `.ai-kit/checks.sh`, and add the toolchain setup steps to `.github/workflows/ai-kit-checks.yml`.
 - If the setup reports existing git hooks, add the secret scan to them instead of replacing them.
+- Confirm `git config core.hooksPath` prints `.githooks` (or that the scan was added to existing hooks) and report it.
+- To refresh the scanner and hooks in an older project, run the setup with `--update`.
+- Commit the setup (`kit-deliver`) before starting the first task.
 - CI minutes on private repositories can be limited or billed; tell the user.
+- Before downloading tools or container images, tell the user names, sources and sizes and wait for approval. Check local services as `kit-security` describes.
 
 ## 5. Projects with a UI
 Continue with `kit-design` before building screens.

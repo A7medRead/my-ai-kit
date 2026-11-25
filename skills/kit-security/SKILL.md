@@ -15,6 +15,7 @@ Scope to the change; before a first release or on request, cover the whole proje
 - **Abuse:** rate limits on login, signup, reset, costly APIs; spending caps on paid services.
 - **Data:** collect only what is needed; encrypted in transit; backups; no personal data in logs.
 - **Configuration:** security headers, strict CORS, debug off in production, least-privilege keys.
+- **Local services:** after starting a database or other service, check which addresses its ports are published on. Docker publishes to the whole network by default; a service with a default password must listen on this machine only. Changing a Docker or system setting is the user's step.
 - **Dependencies:** run the ecosystem's audit tool; check new packages for exact name, maintenance and license.
 - **AI features:** treat model output and retrieved content as untrusted; limit what tools the model can trigger.
 

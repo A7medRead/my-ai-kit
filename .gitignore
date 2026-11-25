@@ -4,3 +4,5 @@ Thumbs.db
 .env.*
 !.env.example
 *.ai-kit-backup-*
+# Private taste library: it has its own repository and must not be published with the kit.
+/taste/
