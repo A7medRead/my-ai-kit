@@ -1,0 +1,4 @@
+#!/bin/sh
+root=$(git rev-parse --show-toplevel) || exit 1
+# $1 is the name of the destination remote.
+exec sh "$root/.ai-kit/scan-secrets.sh" --pre-push "$1"

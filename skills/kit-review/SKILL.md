@@ -1,0 +1,24 @@
+---
+name: kit-review
+description: "Use to review code changes before merge, or to check work done by another model or session. Read-only unless the user asks for fixes. Arabic triggers: راجع، مراجعة الكود."
+---
+
+# Review
+
+Do not edit code unless asked. Judge the code, not the author's description of it.
+
+1. Define the scope: the branch diff against `main`, a commit range, or uncommitted changes. Read the task and its "done when" line.
+2. Check, in order:
+   - **Correctness:** does it do what was asked? Edge cases, error paths, concurrency.
+   - **Breakage:** callers, APIs, data and existing behavior.
+   - **Security:** use `kit-security` for sensitive areas.
+   - **Honesty:** skipped or weakened tests, swallowed errors, hard-coded results, claims without evidence.
+   - **Maintainability:** duplication, unneeded complexity or dependencies, naming, project conventions.
+   - **Tests and docs:** match the change.
+3. Run the relevant checks yourself when possible.
+4. Verify each finding against the code before reporting it; drop what you cannot support.
+
+## Report
+Verdict: ready / ready after fixes / not ready. Findings by severity with file and line, a concrete failure scenario, and a suggested fix. Then what you did not review. If there are no real problems, say so; do not invent any.
+
+For large or sensitive changes, suggest a review by a different model or a fresh session.

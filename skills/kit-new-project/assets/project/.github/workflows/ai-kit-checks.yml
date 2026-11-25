@@ -1,0 +1,29 @@
+name: ai-kit checks
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Secret scan (all tracked files)
+        run: sh .ai-kit/scan-secrets.sh --all
+
+      - name: Secret scan (every commit in the pull request)
+        if: github.event_name == 'pull_request'
+        run: sh .ai-kit/scan-secrets.sh --range "origin/${GITHUB_BASE_REF}..HEAD"
+
+      # Add this project's toolchain setup and dependency install steps here.
+
+      - name: Project checks
+        run: sh .ai-kit/checks.sh full
