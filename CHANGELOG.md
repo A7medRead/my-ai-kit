@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.11 - 2026-11-26
+Fix for a wrong report line seen in real use (`docs/ISSUES.md`, KI-028):
+- `delivery-facts.mjs` accepts a commit hash for work without a task ID, and says `unknown` instead of `none` when it cannot tell which commit is the delivery.
+
 ## 0.4.10 - 2026-11-26
 Rules that text alone did not enforce now come from scripts (`docs/ISSUES.md`, KI-018 and KI-025), not yet confirmed in real use:
 - The full secret scan (`--all`) also checks unstaged edits and new files that are not ignored. Existing projects get it with `setup-project.mjs --update`.

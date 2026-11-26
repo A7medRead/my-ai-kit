@@ -87,5 +87,5 @@ Next:        <next task and its level>
 Kit:         <kit version, as in step 3>
 ```
 Send every line, in the user's language. Write `none` instead of dropping a line, and always give the next task's level.
-**`Commit` and `Pushed` come from git, not from memory,** in this report and in any other that has them. After committing and pushing, run `node scripts/delivery-facts.mjs <project> [task-id]` from this skill's folder and copy its two lines; translate only the words, never the hash, branch or `none`. Without Node, read them from `git log` and `git branch -r --contains <hash>`. Files saved on disk are not a commit.
+**`Commit` and `Pushed` come from git, not from memory,** in this report and in any other that has them. After committing and pushing, run `node scripts/delivery-facts.mjs <project> <task-id>` from this skill's folder and copy its two lines; translate only the words, never the hash, branch, `none` or `unknown`. Work without a task ID: give the new commit's hash from `git log -1` instead. `unknown` means run it again with the hash; it is never the final answer. Without Node, read them from `git log` and `git branch -r --contains <hash>`. Files saved on disk are not a commit.
 A fix after a review is a delivery too: send the same full report. Before sending, check that all eight lines are there.
