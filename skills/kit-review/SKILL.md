@@ -16,7 +16,7 @@ Do not edit code unless asked. Judge the code, not the author's description of i
    - **Maintainability:** duplication, unneeded complexity or dependencies, naming, project conventions.
    - **Tests:** each part of "done when" has evidence, and its test fails when that rule is broken. Run the old and new versions of a changed test against the same breakage. Use a temporary copy or a rolled-back transaction, never real data. Report evidence that is not saved in the project.
    - **Docs:** commands and run instructions match the change. A reworded "done when" is a finding unless the user approved it.
-   - **UI:** when an approved mockup exists, repeat the side-by-side comparison from `kit-design` step 7.
+   - **UI:** when an approved mockup exists, repeat the side-by-side comparison from `kit-design` step 8.
 3. Run the relevant checks yourself when possible.
 4. Verify each finding against the code before reporting it; drop what you cannot support.
 

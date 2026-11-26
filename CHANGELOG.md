@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.9 - 2026-11-26
+Fixes from the same trial's later design stages (`docs/ISSUES.md`, KI-011, KI-012, KI-016, KI-019 and KI-022 to KI-025), not yet confirmed by a later design:
+- The delivery report's `Commit` line is a hash from `git log`, or `none` with the reason.
+- The proposal and the report sent with a design are fixed blocks with every line, like the delivery report; images are shown, not named.
+- Design approval is asked on its own; building or applying it is a separate question.
+- Differences from the approved look go in the reply, and shared style fixes rerun every state they touch.
+- Project documents never carry the taste library's images, notes or reasons.
+- `kit-deliver` and `kit-review` point to the right `kit-design` step again.
+
 ## 0.4.8 - 2026-11-26
 Fixes from a trial redesign that used too much time and usage limit (`docs/ISSUES.md`, KI-019), not yet confirmed by a later design:
 - A design starts with a short written proposal, then one key screen refined on feedback; more directions only when the user asks.

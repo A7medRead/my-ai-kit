@@ -21,7 +21,7 @@ For Medium and Large changes:
 - When the evidence is a test, break the rule it covers for a moment, confirm the test fails, then restore and rerun. Do this locally with test data only and leave no change behind.
 - If you changed an existing test or assertion, confirm the same way that it still catches what it caught before.
 - Keep the evidence repeatable: commit the test and run it from `.ai-kit/checks.sh`. A manual check or temporary script is not a saved test: say so in the records and the report. Do not link files in build or temporary folders.
-- A screen that has an approved mockup: do the comparison in `kit-design` step 7 before marking the task done. A new element or state the mockup does not show is a difference too. Ask before committing: a difference the user has not approved means the task is not done, and writing it in `docs/DESIGN.md` or `docs/PROGRESS.md` is not approval.
+- A screen that has an approved mockup: do the comparison in `kit-design` step 8 before marking the task done. A new element or state the mockup does not show is a difference too. Ask before committing: a difference the user has not approved means the task is not done, and writing it in `docs/DESIGN.md` or `docs/PROGRESS.md` is not approval.
 
 If the task added a new kind of check (first tests, a new tool), add its command to `.ai-kit/checks.sh`.
 
@@ -78,7 +78,7 @@ No force push, no `--no-verify`. Merge only with the user's explicit approval fo
 ## 7. Report
 ```
 Done:        ...
-Commit:      <hash> on <branch>
+Commit:      <hash from git log> on <branch> / none (why)
 Pushed:      yes / no (why)
 Tested:      ...
 Not tested:  ...
@@ -87,4 +87,5 @@ Next:        <next task and its level>
 Kit:         <kit version, as in step 3>
 ```
 Send every line, in the user's language. Write `none` instead of dropping a line, and always give the next task's level.
+`Commit` is the hash read from `git log` after committing. If nothing was committed, write `none` and why: files saved on disk are not a commit. `Pushed` gives the real reason, such as no remote.
 A fix after a review is a delivery too: send the same full report. Before sending, check that all eight lines are there.
