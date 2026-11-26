@@ -62,6 +62,7 @@ When a task is finished, use `kit-deliver`:
 - Push automatically **only if** all hold: the checks for this change level passed, the branch is not `main`/`master`, the secret scan passed, you know which remote and commits will go, and nothing the push triggers deploys to production or costs money. Otherwise do not push, and say why.
 - Never merge on your own. Merge only when the user explicitly approves that merge, after the full checks pass.
 - End every delivery, including fixes after a review, with the full report from `kit-deliver` step 7: every line, none dropped.
+- `Commit` and `Pushed` lines in any report come from the script in `kit-deliver` step 7, never from memory.
 
 ## 9. Status and learning
 - When asked where the project stands, use `kit-status`. Never answer from memory or from a docs file alone.

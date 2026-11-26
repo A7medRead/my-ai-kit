@@ -4,6 +4,7 @@
 # This is a pattern check: it reduces risk but cannot catch every secret.
 #
 # Usage: scan-secrets.sh --staged | --all | --range A..B | --pre-push [remote]
+# --all covers tracked files, unstaged edits and new files. Ignored files are skipped.
 # Allow a false positive (only with the owner's approval):
 #   - put "ai-kit:allow-secret" in a comment on that line, or
 #   - add the exact file path to .ai-kit/secrets-allow (for blocked file names)
@@ -87,6 +88,7 @@ report() {
 }
 
 # grep_tree <tree> <file-list> <flags> <pattern>   output fields are NUL separated
+# <tree> is "--cached", "--untracked" (the files on disk) or a commit id.
 grep_tree() {
     # xargs returns non-zero when nothing matches, so errors are detected through stderr.
     tr '\n' '\0' < "$2" |
@@ -116,15 +118,25 @@ scan_binary_files() {
     grep_tree "$tree" "$list" -Ilz '' | tr '\000' '\n' | sed "s/^$tree://" > "$tmp/textfiles"
     grep -vxF -f "$tmp/textfiles" "$list" > "$tmp/binary"
     while IFS= read -r file; do
-        if [ "$tree" = --cached ]; then spec=":0:$file"; label=$file
-        else spec="$tree:$file"; label="$tree:$file"; fi
-        if ! git cat-file blob "$spec" > "$tmp/blob" 2>/dev/null; then
-            if [ "$tree" = --cached ]; then entry=$(g ls-files -s -- "$file")
-            else entry=$(g ls-tree "$tree" -- "$file"); fi
-            case "$entry" in
-                160000*) continue ;; # submodule: no content in this repository
-                *) echo "cannot read $file" >> "$tmp/err"; continue ;;
-            esac
+        label=$file
+        if [ "$tree" = --untracked ]; then
+            # Git stores a link as its target path, so the file it points to is not committed.
+            [ -L "$file" ] && continue
+            if ! cat -- "$file" > "$tmp/blob" 2>/dev/null; then
+                [ -d "$file" ] && continue # submodule: no content in this repository
+                echo "cannot read $file" >> "$tmp/err"; continue
+            fi
+        else
+            if [ "$tree" = --cached ]; then spec=":0:$file"
+            else spec="$tree:$file"; label="$tree:$file"; fi
+            if ! git cat-file blob "$spec" > "$tmp/blob" 2>/dev/null; then
+                if [ "$tree" = --cached ]; then entry=$(g ls-files -s -- "$file")
+                else entry=$(g ls-tree "$tree" -- "$file"); fi
+                case "$entry" in
+                    160000*) continue ;; # submodule: no content in this repository
+                    *) echo "cannot read $file" >> "$tmp/err"; continue ;;
+                esac
+            fi
         fi
         tr -d '\000' < "$tmp/blob" > "$tmp/text"
         grep -qiaE -f "$tmp/patterns" "$tmp/text" || continue
@@ -132,7 +144,7 @@ scan_binary_files() {
     done < "$tmp/binary"
 }
 
-# scan_set <tree> <file-list>   tree is "--cached" or a commit id
+# scan_set <tree> <file-list>   tree as in grep_tree
 scan_set() {
     tree=$1
     list=$2
@@ -174,6 +186,12 @@ case "${1:-}" in
     --all)
         g ls-files > "$tmp/files" || fail "cannot list files"
         scan_set --cached "$tmp/files"
+        # Edits and new files are not in the index yet, but the next "git add" would take them.
+        g diff --name-only --diff-filter=ACMRT > "$tmp/changed" || fail "cannot list changed files"
+        g ls-files --others --exclude-standard > "$tmp/new" || fail "cannot list new files"
+        # A name ending in "/" is a nested repository, which git does not add as files.
+        cat "$tmp/changed" "$tmp/new" | grep -v '/$' | sort -u > "$tmp/worktree"
+        scan_set --untracked "$tmp/worktree"
         ;;
     --range)
         [ -n "${2:-}" ] || fail "missing range"

@@ -15,3 +15,6 @@ Every approved design, two lines each, newest first. Read before proposing a new
 
 - 2026-11-25 | barber shop booking (Arabic, mobile) | step-by-step flow, sticky primary action
   Tajawal | warm off-white with deep maroon | barber pole in the header
+
+- 2026-11-26 | barber shop owner dashboard (Arabic, RTL) | daily schedule with top navigation on phones and a sidebar on wider screens
+  Alexandria | light grey, charcoal and yellow | dark next-appointment card above chronological rows

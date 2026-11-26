@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.10 - 2026-11-26
+Rules that text alone did not enforce now come from scripts (`docs/ISSUES.md`, KI-018 and KI-025), not yet confirmed in real use:
+- The full secret scan (`--all`) also checks unstaged edits and new files that are not ignored. Existing projects get it with `setup-project.mjs --update`.
+- `kit-deliver` prints the report's `Commit` and `Pushed` lines from git with `scripts/delivery-facts.mjs`, and the core rules require it.
+
 ## 0.4.9 - 2026-11-26
 Fixes from the same trial's later design stages (`docs/ISSUES.md`, KI-011, KI-012, KI-016, KI-019 and KI-022 to KI-025), not yet confirmed by a later design:
 - The delivery report's `Commit` line is a hash from `git log`, or `none` with the reason.

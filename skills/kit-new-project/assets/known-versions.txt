@@ -5,3 +5,4 @@
 5d3a2efdcab0e779c5f88ad31598203334a5a37c9ab383d49ad60927211fbd82 .ai-kit/scan-secrets.sh
 cde18c7e7b1bfe552195212e3fb699796878f74e2d081a1dcf8a92068a8b03f8 .githooks/pre-commit
 8fad65acbe6935f25f17144a8a32dab24fae90e75b9ea8eb4d01ee28bc24d1fd .githooks/pre-push
+ac9fe396adac878846cfb0edba1bc827242552c15e53bf3385939c99fa1d590c .ai-kit/scan-secrets.sh
