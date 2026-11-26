@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.8 - 2026-11-26
+Fixes from a trial redesign that used too much time and usage limit (`docs/ISSUES.md`, KI-019), not yet confirmed by a later design:
+- A design starts with a short written proposal, then one key screen refined on feedback; more directions only when the user asks.
+- A sketch gets a light check; the full self-review runs on the approved look, before final approval.
+- A sketch may be an image when the tool generates images itself; no paid service without approval.
+
 ## 0.4.7 - 2026-11-26
 Fixes from the user's review of a trial design that looked dated (`docs/ISSUES.md`, KI-017), not yet confirmed by a later design:
 - Taste examples are required before new directions are drawn, unless the user says to go ahead without them.

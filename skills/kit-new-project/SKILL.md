@@ -62,7 +62,7 @@ Write the approved conventions into the project `AGENTS.md`.
 
 ### Tasks every plan needs
 - First: scaffold the project and make its checks run.
-- With a UI: a design task (`kit-design`) that is done when the user approves one of three researched directions. The plan may suggest fonts and colors; they are decided there.
+- With a UI: a design task (`kit-design`) that is done when the user gives final approval to a researched design. The plan may suggest fonts and colors; they are decided there.
 - Each defense from item 5, inside a feature task or as its own.
 - A security review (`kit-security`) before release or trial sign-off.
 - Deployment with backup and rollback (`kit-deploy`), or state that it is deferred.

@@ -79,9 +79,9 @@ When a task is finished, use `kit-deliver`:
 Start simple but organized (feature-based folders, UI separated from logic and data access, config outside code, database migrations). When you see growth signs (very large files, third copy of the same code, one change touching unrelated places, fixes breaking other things, a new unplanned requirement), warn the user and propose a step-by-step change with `kit-health-check`. Do not restructure on your own, and never rewrite a project from scratch without approval.
 
 ## 12. User interfaces
-Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before its self-review passed; if it cannot be verified, label it an unverified draft that cannot be approved yet. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
+Any new UI or redesign goes through `kit-design`. Small UI edits follow the existing design system: colors come from the token file only, and every visual choice has a reason tied to the project. Do not show a design before the check for its stage passed: a light check for a sketch, the full self-review for finished screens. Approving a sketch approves the look only; work that cannot be verified is labeled an unverified draft and cannot be approved yet. The user's taste library (`kit-taste`) is private: never copy it into a project or publish it.
 When a screen has an approved mockup, anything that differs from it, including a new element or state it does not show, needs the user's approval before the task is `done`.
-Before drawing a new design direction, read the taste library; if it is empty, ask for liked and disliked examples and wait. A design must look good, current and well organized, not only pass the checks.
+Before drawing a new design, read the taste library; if it is empty, ask for liked and disliked examples and wait. Propose it in a few lines, then draw one key screen and refine it; draw more directions only when the user asks. A design must look good, current and well organized, not only pass the checks.
 
 ## Skills
 | Skill | Use it when |

@@ -30,7 +30,7 @@ Follow the user's latest word. When a new preference contradicts a principle, as
 
 ## Use (during design)
 - Read `principles.md` and `index.md`. Open only the examples close to this project's type.
-- Two of the three directions build on this taste; one deliberately explores something else.
+- Build the design on this taste. When the user asks for several directions, one deliberately explores something else.
 - The project's users and requirements outrank taste. On a conflict, tell the user.
 - Borrow qualities; never copy a design or its assets.
 
