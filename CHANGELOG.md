@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.13 - 2026-11-27
+Hardening of the task claim after an automated security review (`docs/ISSUES.md`, KI-031):
+- A damaged claim file keeps the task taken and only the user's approval clears it; before, the word `unknown` released it.
+- Tool names are limited, and text read from a claim file cannot add lines to the output.
+- The script and the core rules say the claim is an agreement between sessions, not a lock on files.
+
 ## 0.4.12 - 2026-11-27
 Fix for two sessions writing the same task at the same time (`docs/ISSUES.md`, KI-029), not yet confirmed in real use:
 - `kit-status/scripts/claim-task.mjs` gives a task to one session only, across worktrees, and marks it with a tag that tells two sessions of the same tool apart.
