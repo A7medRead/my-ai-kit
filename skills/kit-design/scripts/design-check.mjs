@@ -11,6 +11,8 @@
 //   --desktop 1280x800     desktop size
 //   --before "<js>"        run in the page first, to reach a later state
 //   --source <dir> --tokens <file>   report color values written outside the token file
+//   --mockup               the HTML files are mockups: each must show text and work as a single file
+//                          (always on for files under docs/design/)
 //
 // Exit codes: 0 no failures, 1 failures, 2 bad usage, 3 the check could not run (unverified).
 import { spawn } from 'node:child_process';
@@ -21,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 
 function usage(message) {
     console.error(message);
-    console.error('Usage: node design-check.mjs <page>... [--out dir] [--mobile WxH] [--tablet WxH] [--desktop WxH] [--before js] [--source dir --tokens file]');
+    console.error('Usage: node design-check.mjs <page>... [--out dir] [--mobile WxH] [--tablet WxH] [--desktop WxH] [--before js] [--source dir --tokens file] [--mockup]');
     process.exit(2);
 }
 
@@ -30,6 +32,7 @@ const pages = [];
 const args = process.argv.slice(2);
 for (let i = 0; i < args.length; i++) {
     if (!args[i].startsWith('--')) pages.push(args[i]);
+    else if (args[i] === '--mockup') options.mockup = true;
     else {
         const key = args[i].slice(2);
         if (!['out', 'mobile', 'tablet', 'desktop', 'before', 'source', 'tokens'].includes(key)) usage(`Unknown option: ${args[i]}`);
@@ -38,6 +41,11 @@ for (let i = 0; i < args.length; i++) {
 }
 if (pages.length === 0 && !options.source) usage('Give at least one page, or --source.');
 if (options.source && !options.tokens) usage('--source needs --tokens.');
+if (options.mockup && (pages.length === 0 || pages.some((page) => /^https?:/i.test(page)))) usage('--mockup is for HTML files.');
+
+// A built site may load many files; only a mockup is opened by someone as one file.
+const isMockup = (page) => !/^https?:/i.test(page)
+    && (Boolean(options.mockup) || /\/docs\/design\//i.test(path.resolve(page).replace(/\\/g, '/')));
 
 function size(text) {
     const match = /^(\d{3,4})x(\d{3,4})$/.exec(text);
@@ -163,7 +171,7 @@ function checkSource(directory, tokens) {
 }
 
 // ---------- Runs inside the page ----------
-function audit(small) {
+function audit(small, mockup) {
     const results = [];
     const add = (level, message) => results.push({ level, message });
     const canvas = document.createElement('canvas');
@@ -237,9 +245,11 @@ function audit(small) {
     for (const font of document.fonts) if (font.status === 'error') add('FAIL', `font failed to load: ${font.family}`);
 
     let unmeasured = 0;
-    for (const element of document.body.querySelectorAll('*')) {
+    let readable = 0;
+    for (const element of [document.body, ...document.body.querySelectorAll('*')]) {
         const ownText = [...element.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
         if (!ownText || ['SCRIPT', 'STYLE', 'OPTION'].includes(element.tagName) || !visible(element)) continue;
+        readable++;
         const style = getComputedStyle(element);
         if (style.textDecorationLine.includes('line-through') && element.textContent.includes('٠')) {
             add('FAIL', `line-through over an Arabic-Indic zero hides it: ${name(element)}`);
@@ -255,6 +265,22 @@ function audit(small) {
         if (ratio < needed) add('FAIL', `text contrast ${ratio.toFixed(2)}:1, needs ${needed}:1: ${name(element)}`);
     }
     if (unmeasured) add('WARN', `${unmeasured} text element(s) sit on an image or gradient: check their contrast by eye`);
+
+    if (mockup) {
+        if (!readable) add('FAIL', 'mockup shows no text: the page looks empty');
+        // Reading the elements as well as the requests catches a lazy file that was not requested yet.
+        const linked = 'link[rel~="stylesheet"][href], script[src], img[src], source[src], video[src], video[poster], audio[src], iframe[src], embed[src], object[data]';
+        for (const element of document.querySelectorAll(linked)) {
+            for (const attribute of ['href', 'src', 'poster', 'data']) {
+                const value = element.getAttribute(attribute);
+                // A mistyped address must not stop the check; the browser reports it as a failed load.
+                if (!value || !URL.canParse(value, document.baseURI)) continue;
+                const url = new URL(value, document.baseURI);
+                url.hash = url.search = '';
+                if (url.protocol === 'file:' && url.pathname !== location.pathname) results.push({ level: 'FILE', message: url.href });
+            }
+        }
+    }
 
     for (const image of document.images) {
         if (!image.hasAttribute('alt')) add('FAIL', `image without alt: ${image.src.slice(0, 60)}`);
@@ -434,9 +460,12 @@ async function checkPages(urls) {
                     return reply.result.value;
                 };
                 await evaluate('document.fonts.ready.then(() => true)');
+                // The browser's own spelling of the page address, so the page is never reported as another file.
+                const here = await evaluate('location.pathname');
                 if (options.before) await evaluate(`(async () => { ${options.before}\n })()`);
                 await sleep(300);
-                const results = await evaluate(`(${audit.toString()})(${label === 'mobile'})`);
+                const mockup = isMockup(pages[index]);
+                const results = await evaluate(`(${audit.toString()})(${label === 'mobile'}, ${mockup})`);
                 const { cssContentSize } = await send('Page.getLayoutMetrics', {}, sessionId);
                 // A taller viewport shows the whole page. captureBeyondViewport is not used because it
                 // shifts right-to-left pages sideways and cuts them off.
@@ -450,9 +479,23 @@ async function checkPages(urls) {
                 const file = path.join(out, `${index + 1}-${stem}-${label}.png`);
                 fs.writeFileSync(file, Buffer.from(shot.data, 'base64'));
 
-                console.log(`\n== ${pages[index]} [${label} ${viewport.width}x${viewport.height}] ==`);
+                console.log(`\n== ${pages[index]} [${label} ${viewport.width}x${viewport.height}]${mockup ? ' mockup' : ''} ==`);
                 listeners.delete(watch);
-                const unique = [...new Map([...runtime, ...results].map((r) => [r.level + r.message, r])).values()];
+                const found = [...runtime, ...results.filter((r) => r.level !== 'FILE')];
+                if (mockup) {
+                    const folder = here.slice(0, here.lastIndexOf('/') + 1);
+                    const loaded = [...requests.values(), ...results.filter((r) => r.level === 'FILE').map((r) => r.message)];
+                    for (const address of loaded) {
+                        const { protocol, pathname, host } = new URL(address);
+                        if (protocol === 'file:' && pathname !== here && !pathname.endsWith('/favicon.ico')) {
+                            const other = pathname.startsWith(folder) ? pathname.slice(folder.length) : pathname;
+                            found.push({ level: 'FAIL', message: `mockup depends on another file, so a preview may show it blank or unstyled: ${other.slice(-100)}` });
+                        } else if (/^(https?|wss?):$/.test(protocol)) {
+                            found.push({ level: 'WARN', message: `mockup loads from the network (${host}): embed it, or tell the user it needs a connection` });
+                        }
+                    }
+                }
+                const unique = [...new Map(found.map((r) => [r.level + r.message, r])).values()];
                 for (const { level, message } of unique) console.log(`${level}  ${message}`);
                 if (unique.length === 0) console.log('ok');
                 console.log(`screenshot: ${file}`);

@@ -35,6 +35,7 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 - Rate every planned task `Low`, `Medium` or `High` (the model strength it needs) and tell the user when switching models would save usage or is needed. Do not hard-code model names.
 - If you cannot see your usage limit or cannot switch models, say so plainly.
 - Save the resume point in `docs/PLAN.md` as you go. Do not start a large task when the limit or context is nearly exhausted.
+- **Long commands:** before one likely to take over two minutes, say what it runs and about how long. Run it in the background if your tool can, otherwise split it. Answer a message sent meanwhile as soon as the tool lets you.
 
 ## 6. Verification, sized to the change
 | Change | Examples | Check |

@@ -54,8 +54,8 @@ Wait for the user to agree or correct it.
 The user cannot judge a look from text.
 - One key screen at phone width (desktop when that is the main device), with realistic content in the project's language. No other screens, flows or states yet.
 - It carries every decision that screen needs (for example the day as well as the time), the brand identity and a visual signature beyond palette and font, and meets the quality bar.
-- Use the cheapest way your tool has: an image if it can generate images itself, otherwise one throwaway static mockup (for example self-contained HTML in `docs/design/`), kept out of the application source. An image the user made elsewhere also works. Never use a paid service or API for it without approval.
-- Run the light check, show it, and tell the user how to view it. If your tool can produce no visual at all, say so before asking for approval.
+- Use the cheapest way your tool has: an image if it can generate images itself, otherwise one throwaway static mockup in `docs/design/`, kept out of the application source. An HTML mockup is **one self-contained file**: styles, scripts, images and fonts are inside it, because a preview may not load files beside it. An image the user made elsewhere also works. Never use a paid service or API for it without approval.
+- Run the light check, show it with its phone screenshot in the reply (the desktop one when that is the main device), and tell the user how to open it. If your tool can produce no visual at all, say so before asking for approval.
 
 **Several directions only when the user asks**, or rejects the design as a whole and wants alternatives. Draw as many as they ask for (three if they give no number), one key screen each. They differ in layout, typography, color and shape language, not recolors or the same components reordered: in grayscale and one font they must still look different. With taste examples, one of them deliberately explores something else.
 
@@ -73,7 +73,7 @@ A design must look good, current and well organized, not only pass the checks.
 - **Avoid a dated look:** boxes around everything, heavy borders, long undifferentiated lists, cramped or uneven spacing.
 
 ## Light check (sketches)
-- A code sketch: run the design check (step 1 of the self-review) on that screen, fix every `FAIL`, and look at the screenshot.
+- A code sketch: run the design check (step 1 of the self-review) on that screen with `--mockup`, fix every `FAIL`, and look at the screenshot.
 - An image: it cannot be measured. Read every word in it (generated Arabic text often comes out wrong) and check that the required controls are there.
 - Both: put it beside one or two of the closest taste examples and fix what looks weaker.
 - Call it a sketch and say what was checked; states, other sizes and accessibility are not checked yet.
@@ -81,7 +81,7 @@ A design must look good, current and well organized, not only pass the checks.
 ## Full self-review (required before final approval)
 Applies to the built screens, or to the complete mockups when the task is only to design them. The user should receive work that already passed this.
 
-1. **Measure:** run `node scripts/design-check.mjs <page>... --out <folder>` from this skill's folder. Reach later states with `--before "<js>"`; for built code add `--source <dir> --tokens <file>`. Fix every `FAIL`, fix or justify every `WARN`, and run it again. Exit code 3 means nothing was verified: say so. Name the states the run covered and claim nothing about a state it did not run; include error states with the most content, such as several rows or fields. After a fix to shared colors, buttons, spacing or layout, run every state it touches again, not only the ones that failed.
+1. **Measure:** run `node scripts/design-check.mjs <page>... --out <folder>` from this skill's folder. Reach later states with `--before "<js>"`; for built code add `--source <dir> --tokens <file>`, for HTML mockups add `--mockup`. Fix every `FAIL`, fix or justify every `WARN`, and run it again. Exit code 3 means nothing was verified: say so. Name the states the run covered and claim nothing about a state it did not run; include error states with the most content, such as several rows or fields. After a fix to shared colors, buttons, spacing or layout, run every state it touches again, not only the ones that failed.
 2. **Look** at every screenshot, at phone, tablet and desktop size, including the filled, error and finished states.
 3. **Compare:** put your screenshots beside two or three of the strongest taste examples or references, at the same size. Write where yours looks weaker or older in color, type, spacing and shape, using the quality bar, and fix it. Keep these images in a temporary folder, never in the project. If you cannot capture them, say so.
 4. **Judge**, answering each in writing with evidence:

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.16 - 2026-11-27
+Two fixes for problems seen in real use, neither yet confirmed there:
+- A mockup that showed up blank (`docs/ISSUES.md`, KI-021): `design-check.mjs` fails a mockup that depends on another local file or shows no text, and warns when it loads from the network. The rule applies with `--mockup` and to any file under `docs/design/`. `kit-design` requires an HTML mockup to be one self-contained file, shown with its screenshot. Text written directly in `<body>` is now measured for contrast too. A project's older copy in `.ai-kit/` keeps its previous behavior.
+- No reply during long commands (`docs/ISSUES.md`, KI-020): the core rules require saying what runs and for how long before a command likely to take over two minutes, and running it in the background or in parts. This is a written rule; nothing enforces it.
+
 ## 0.4.15 - 2026-11-27
 Checking what sessions said against what they did:
 - `kit-review/scripts/session-audit.mjs` reads Codex and Claude Code transcripts and reports long silences, unsupported `Commit` lines, unbacked "passed" claims, unrequested sensitive actions, missing task claims and parallel writers. On the trial's real sessions it found the failed commit claims, the two writers and the silence recorded earlier. It does not judge decisions, design differences or looks.

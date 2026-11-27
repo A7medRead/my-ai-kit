@@ -758,6 +758,50 @@ if (r.code === 3) {
     r = node(designCheck, good, '--before', 'document.querySelector("h1").style.color = "#ddd"', '--out', shots);
     check('design check measures the state reached by --before', r.code === 1 && r.out.includes('text contrast'), r.out);
 
+    // A mockup is opened by someone as one file, so anything beside it may be missing there.
+    const head = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">';
+    const split = `${head}<link rel="stylesheet" href="side.css"><style>@import "imported.css"; body{background-image:url(back.png)}</style></head>
+<body><h1>title</h1><img src="lazy.png" alt="x" loading="lazy" style="margin-top:9000px"><script src="side.js"></script></body></html>`;
+    const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const neighbours = ['side.css', 'imported.css', 'back.png', 'lazy.png', 'side.js'];
+    for (const folder of [path.join(ui, 'docs', 'design'), path.join(ui, 'site')]) {
+        put(path.join(folder, 'split page.html'), split);
+        for (const name of neighbours) put(path.join(folder, name), name.endsWith('.png') ? pixel : '');
+    }
+    const inDesign = path.join(ui, 'docs', 'design', 'split page.html');
+    const inSite = path.join(ui, 'site', 'split page.html');
+    r = node(designCheck, inDesign, '--out', path.join(ui, 'split-shots'));
+    for (const name of neighbours) {
+        check(`mockup under docs/design may not depend on ${name}`, r.code === 1 && r.out.includes(`unstyled: ${name}`), r.out);
+    }
+    check('mockup check does not report the page itself', !r.out.includes('unstyled: split'), r.out);
+    r = node(designCheck, inSite, '--out', path.join(ui, 'site-shots'));
+    check('a page outside docs/design may use its own files', r.code === 0 && !r.out.includes('mockup'), r.out);
+    r = node(designCheck, inSite, '--mockup', '--out', path.join(ui, 'flag-shots'));
+    check('--mockup applies the single-file rule anywhere', r.code === 1 && r.out.includes('unstyled: side.css'), r.out);
+    const single = path.join(ui, 'docs', 'design', 'single.html');
+    put(single, `${head}<link rel="icon" href="data:,"><style>body{background:#fff;color:#111}</style></head>
+<body><h1>title</h1><img src="data:image/png;base64,${pixel.toString('base64')}" alt="x"><a href="split page.html">next</a></body></html>`);
+    r = node(designCheck, single, '--out', path.join(ui, 'single-shots'));
+    check('a self-contained mockup passes', r.code === 0 && r.out.includes('mockup ==') && r.out.includes('0 failure(s), 0 warning(s)'), r.out);
+    const bare = path.join(ui, 'docs', 'design', 'bare.html');
+    put(bare, `${head}</head><body><div style="display:none">hidden</div></body></html>`);
+    r = node(designCheck, bare, '--out', path.join(ui, 'bare-shots'));
+    check('an empty-looking mockup fails', r.code === 1 && r.out.includes('mockup shows no text'), r.out);
+    const plainText = path.join(ui, 'docs', 'design', 'text-only.html');
+    put(plainText, `${head}</head><body>only body text</body></html>`);
+    r = node(designCheck, plainText, '--out', path.join(ui, 'text-shots'));
+    check('text directly in the body counts as shown', r.code === 0, r.out);
+    const online = path.join(ui, 'docs', 'design', 'online.html');
+    put(online, `${head}<link rel="stylesheet" href="https://fonts.example.invalid/a.css"></head><body><h1>title</h1></body></html>`);
+    r = node(designCheck, online, '--out', path.join(ui, 'online-shots'));
+    check('a mockup that needs the network is warned about', r.out.includes('mockup loads from the network (fonts.example.invalid)'), r.out);
+    check('--mockup refuses a served page', node(designCheck, 'http://localhost:3000/', '--mockup').code === 2);
+    const mistyped = path.join(ui, 'docs', 'design', 'mistyped.html');
+    put(mistyped, `${head}</head><body><h1>title</h1><img src="http://[" alt="x"></body></html>`);
+    r = node(designCheck, mistyped, '--out', path.join(ui, 'mistyped-shots'));
+    check('a mistyped address in a mockup does not stop the check', r.code !== 3 && r.out.includes('failure(s)'), r.out);
+
     // Right-to-left screenshots must show the full width, on short and on tall pages.
     for (const [kind, filler] of [['short', 0], ['tall', 1500]]) {
         const page = path.join(ui, `rtl-${kind}.html`);
