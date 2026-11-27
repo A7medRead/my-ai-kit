@@ -373,6 +373,7 @@ const tag = /CLAIMED: T-011 #([0-9a-f]{6})/.exec(r.out)?.[1];
 check('claim: the first session wins and gets its plan mark', r.code === 0 && Boolean(tag) && r.out.includes(`In progress: T-011 · Codex · `) && r.out.includes(`#${tag}`), r.out);
 r = node(claimScript, 'claim', claimed, '[t-011]', 'Codex');
 check('claim: a second session of the same tool is refused', r.code === 1 && r.out.includes(`#${tag}`) && r.out.includes('REFUSED'), r.out);
+check('claim: the refusal says to stop and not to ask for a release', r.out.includes('stop, change nothing') && r.out.includes('Do not ask for a release') && r.out.includes('has stopped'), r.out);
 check('claim: nothing appears in the work tree', git(claimed, 'status', '--porcelain', '--untracked-files=all').out.trim() === '');
 const worktree = path.join(work, 'claimed worktree');
 git(claimed, 'worktree', 'add', '--quiet', '-b', 'other', worktree);

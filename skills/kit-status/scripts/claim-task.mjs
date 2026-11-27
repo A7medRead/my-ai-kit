@@ -83,7 +83,8 @@ if (command === 'claim') {
         if (error.code !== 'EEXIST') throw error;
         const holder = readClaim(file);
         stop(1, `REFUSED: ${holder ? describe(holder) : `${task} was just released, claim it again`}.\n`
-            + 'Continue only if this conversation made that claim. Otherwise change nothing and ask the user.');
+            + 'Continue only if this conversation made that claim. Otherwise stop, change nothing and tell the user who holds the task.\n'
+            + 'Do not ask for a release: it is only for a session the user confirms has stopped.');
     }
     console.log(`CLAIMED: ${task} #${claim.tag}`);
     console.log(`Write in docs/PLAN.md: In progress: ${task} · ${value} · ${claim.since} · #${claim.tag}`);
@@ -97,7 +98,7 @@ if (!holder) {
 }
 // A damaged claim has no tag to match, so only the user's approval releases it.
 if (value !== '--user-approved' && value.replace(/^#/, '') !== holder.tag) {
-    stop(1, `REFUSED: ${describe(holder)}. Releasing another session's claim needs the user's approval.`);
+    stop(1, `REFUSED: ${describe(holder)}. Releasing another session's claim needs the user's approval, once that session has stopped.`);
 }
 fs.rmSync(file);
 console.log(`RELEASED: ${task}`);

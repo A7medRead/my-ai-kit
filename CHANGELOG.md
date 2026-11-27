@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.14 - 2026-11-27
+Fix from the first real refusal of a second session (`docs/ISSUES.md`, KI-029):
+- The refusal message and the core rules tell the refused session to stop and not to ask for a release, which is only for a session the user confirms has stopped.
+
 ## 0.4.13 - 2026-11-27
 Hardening of the task claim after an automated security review (`docs/ISSUES.md`, KI-031):
 - A damaged claim file keeps the task taken and only the user's approval clears it; before, the word `unknown` released it.
