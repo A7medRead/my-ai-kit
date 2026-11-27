@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.12 - 2026-11-27
+Fix for two sessions writing the same task at the same time (`docs/ISSUES.md`, KI-029), not yet confirmed in real use:
+- `kit-status/scripts/claim-task.mjs` gives a task to one session only, across worktrees, and marks it with a tag that tells two sessions of the same tool apart.
+- The core rules require the claim before any change to a planned task; `kit-deliver` releases it after the commit.
+
 ## 0.4.11 - 2026-11-26
 Fix for a wrong report line seen in real use (`docs/ISSUES.md`, KI-028):
 - `delivery-facts.mjs` accepts a commit hash for work without a task ID, and says `unknown` instead of `none` when it cannot tell which commit is the delivery.

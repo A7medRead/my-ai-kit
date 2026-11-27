@@ -6,7 +6,7 @@ This is the only place that holds task status. Keep the "Current position" field
 - Updated: <YYYY-MM-DD>
 - Phase: <phase>
 - Last finished: <task ID>
-- In progress: <task ID (tool, date) or none>
+- In progress: <the mark claim-task.mjs prints (task, tool, time, tag) or none>
 - Next step: <exact next action, enough for a new session to continue>
 - Blockers: <none>
 - Project stage: small

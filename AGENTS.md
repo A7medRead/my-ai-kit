@@ -24,7 +24,7 @@ These rules apply to every project. A project's own `AGENTS.md` may add rules or
 ## 4. Scope
 - Do what was asked. Suggest other improvements; do not apply them.
 - **Preserve changes:** never discard or overwrite work by the user or another AI. Check `git status` before editing.
-- **One writer per task:** before starting, check "In progress" in `docs/PLAN.md`, then mark your task there with your tool's name and the date. If another session or tool holds it, ask the user. Parallel work uses different tasks in separate git worktrees.
+- **One writer per task:** before changing anything for a planned task, claim it with the `claim-task.mjs` script of the `kit-status` skill (`claim <project> <task-id> <tool>`), then write the mark it prints in "In progress" in `docs/PLAN.md`. If the claim is refused, or "In progress" holds a mark this conversation did not make, change nothing and ask the user; only the user may release another session's claim. Without Node, mark the task with tool, date and time and read the file again to confirm. Parallel work uses different tasks in separate git worktrees.
 - **Right repository:** before committing, confirm `git rev-parse --show-toplevel` is this project's folder. If it is a parent folder holding other work, do not commit there; tell the user.
 - **Backward compatibility:** do not break working behavior while adding new behavior.
 - **Dependencies:** add a library or service only for a clear reason; check that it is maintained and has no known serious vulnerability.

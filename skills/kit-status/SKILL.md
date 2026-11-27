@@ -18,6 +18,7 @@ For a read-only check, or while another session or tool is working in the projec
 - Read the "Current position" block and task list in `docs/PLAN.md`, and the latest `docs/PROGRESS.md` entry.
 - Check the commits made after `PLAN.md` was last updated.
 - Check recent work on other branches and uncommitted changes.
+- List claimed tasks with `node scripts/claim-task.mjs list <project>`: a claimed task has a writer, whatever the files say.
 - When docs and reality disagree or something is unclear, inspect the code and run the relevant tests.
 
 ## 3. Reality wins

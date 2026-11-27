@@ -28,6 +28,7 @@ If the task added a new kind of check (first tests, a new tool), add its command
 ## 3. Record, in the same commit
 If the project has no kit docs, do not create them just to deliver; offer to set them up. Follow each file's format.
 - `docs/PLAN.md`: update the task's `Status` and every "Current position" field (including the next step), and clear your "In progress" mark. Restore the fields or column if they are missing.
+- After that commit, release your claim: `node <kit-status skill>/scripts/claim-task.mjs release <project> <task-id> <tag>`, with the tag in your mark. Keep it while the task waits for the user; release it too when you hand the task to someone else.
 - `docs/PROGRESS.md`: new entry at the top - date, task ID, what changed, what was tested, what was not, and the kit version. No commit hash; the task ID in the commit message links them.
 - The kit version is the `Kit version` line in the global rules this session loaded, not the kit's `VERSION` file, which may be newer. If there is no such line, write `unknown`.
 - `docs/DECISIONS.md`: only if a real decision was made.

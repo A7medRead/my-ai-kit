@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Automated tests for the kit. Runs on macOS, Windows and Linux.
 // Everything happens inside a new temporary folder, which is removed at the end.
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -359,6 +359,47 @@ git(shipped, 'push', '--quiet', '-u', 'origin', 'main');
 r = node(facts, shipped, '[T-001]');
 check('delivery facts: a pushed commit names its remote branch', /^Pushed: +yes \(on origin\/main, as of the last fetch\)$/m.test(r.out), r.out);
 check('delivery facts fail outside a repository', node(facts, path.join(work, 'no-such-folder')).code === 2);
+
+// ---------- Task claims ----------
+const claimScript = path.join(kit, 'skills', 'kit-status', 'scripts', 'claim-task.mjs');
+const claimed = path.join(work, 'claimed');
+fs.mkdirSync(claimed);
+git(claimed, 'init', '--quiet', '-b', 'main');
+git(claimed, 'config', 'user.email', 'test@example.invalid');
+git(claimed, 'config', 'user.name', 'kit test');
+git(claimed, 'commit', '--quiet', '--allow-empty', '-m', 'start');
+r = node(claimScript, 'claim', claimed, 'T-011', 'Codex');
+const tag = /CLAIMED: T-011 #([0-9a-f]{6})/.exec(r.out)?.[1];
+check('claim: the first session wins and gets its plan mark', r.code === 0 && Boolean(tag) && r.out.includes(`In progress: T-011 · Codex · `) && r.out.includes(`#${tag}`), r.out);
+r = node(claimScript, 'claim', claimed, '[t-011]', 'Codex');
+check('claim: a second session of the same tool is refused', r.code === 1 && r.out.includes(`#${tag}`) && r.out.includes('REFUSED'), r.out);
+check('claim: nothing appears in the work tree', git(claimed, 'status', '--porcelain', '--untracked-files=all').out.trim() === '');
+const worktree = path.join(work, 'claimed worktree');
+git(claimed, 'worktree', 'add', '--quiet', '-b', 'other', worktree);
+r = node(claimScript, 'claim', worktree, 'T-011', 'Claude Code');
+check('claim: another worktree cannot take the same task', r.code === 1, r.out);
+r = node(claimScript, 'claim', worktree, 'T-012', 'Claude Code');
+check('claim: another task is free', r.code === 0, r.out);
+r = node(claimScript, 'list', claimed);
+check('claim: list shows every holder', r.code === 0 && r.out.includes('T-011 is claimed by Codex') && r.out.includes('T-012 is claimed by Claude Code'), r.out);
+r = node(claimScript, 'release', claimed, 'T-011', 'ffffff0');
+check('claim: a wrong tag cannot release', r.code === 1 && node(claimScript, 'claim', claimed, 'T-011', 'Codex').code === 1, r.out);
+r = node(claimScript, 'release', claimed, 'T-011', `#${tag}`);
+check('claim: the holder releases and the task is free again', r.code === 0 && node(claimScript, 'claim', claimed, 'T-011', 'Codex').code === 0, r.out);
+r = node(claimScript, 'release', claimed, 'T-011', '--user-approved');
+check('claim: the user can release a claim left behind', r.code === 0 && r.out.includes('RELEASED'), r.out);
+check('claim: releasing a free task is not an error', node(claimScript, 'release', claimed, 'T-011', '--user-approved').code === 0);
+check('claim: an ID cannot leave the claims folder', node(claimScript, 'claim', claimed, '../../x', 'Codex').code === 2);
+check('claim: fails outside a repository', node(claimScript, 'claim', path.join(work, 'no-such-folder'), 'T-1', 'Codex').code === 2);
+// Sessions that start at the same moment: exactly one may win, every time.
+const winners = [];
+for (let round = 1; round <= 3; round++) {
+    const codes = await Promise.all(Array.from({ length: 8 }, () => new Promise((resolve) => {
+        spawn(process.execPath, [claimScript, 'claim', claimed, `R-${round}`, 'Codex'], { env, stdio: 'ignore' }).on('close', resolve);
+    })));
+    winners.push(codes.filter((code) => code === 0).length);
+}
+check('claim: of eight simultaneous claims exactly one wins', winners.every((count) => count === 1), `winners per round: ${winners}`);
 
 // ---------- Updating an older project ----------
 const older = path.join(work, 'older');
