@@ -20,6 +20,14 @@ Do not edit code unless asked. Judge the code, not the author's description of i
 3. Run the relevant checks yourself when possible.
 4. Verify each finding against the code before reporting it; drop what you cannot support.
 
+## Audit sessions
+To check what AI sessions said against what they did, run `node scripts/session-audit.mjs <project> --since <date>` from this skill's folder. It reads the Codex and Claude Code transcripts on this machine and changes nothing.
+- It looks for: long silences, `Commit` lines that git does not support, "checks passed" without a passing run, sensitive actions nobody asked for, task changes without a claim, and two sessions writing at once.
+- `FAIL` is a fact from the transcript or git; `SUSPECT` needs a look. Read the session before calling a suspicion a problem.
+- It cannot judge whether the user was asked about a decision, whether design differences were all shown, how a design looks, or most other statements. Say which of these you checked yourself, and ask the user about the look.
+- The formats are not published interfaces and old Claude Code transcripts are deleted after a retention period, so audit soon after a phase. `UNKNOWN` means nothing was judged.
+- Transcripts are private: quote only what the finding needs, and keep them out of project and kit files.
+
 ## Report
 Verdict: ready / ready after fixes / not ready. Findings by severity with file and line, a concrete failure scenario, and a suggested fix. Then what you did not review. If there are no real problems, say so; do not invent any.
 

@@ -282,6 +282,12 @@ fs.appendFileSync(path.join(project, '.git', 'info', 'exclude'), 'ignored-notes.
 put(path.join(project, 'ignored-notes.txt'), fake['github token'] + '\n');
 r = scan('--all');
 check('--all skips ignored files', r.code === 0, r.out);
+git(project, 'config', 'core.autocrlf', 'true');
+fs.appendFileSync(path.join(project, 'feature.txt'), 'plain edit\n');
+r = scan('--all');
+check('--all prints no line-ending notices for edited files', r.code === 0 && !/CRLF/.test(r.out), r.out);
+git(project, 'config', '--unset', 'core.autocrlf');
+git(project, 'checkout', '--quiet', '--', 'feature.txt');
 fs.rmSync(path.join(project, 'ignored-notes.txt'));
 const arabic = String.fromCodePoint(0x0645, 0x0644, 0x0641);
 put(path.join(project, `${arabic} x.txt`), fake['github token'] + '\n');
@@ -419,6 +425,89 @@ for (let round = 1; round <= 3; round++) {
     winners.push(codes.filter((code) => code === 0).length);
 }
 check('claim: of eight simultaneous claims exactly one wins', winners.every((count) => count === 1), `winners per round: ${winners}`);
+
+// ---------- Session audit (synthetic transcripts only) ----------
+const audit = path.join(kit, 'skills', 'kit-review', 'scripts', 'session-audit.mjs');
+const audited = path.join(work, 'audited');
+fs.mkdirSync(audited);
+git(audited, 'init', '--quiet', '-b', 'main');
+git(audited, 'config', 'user.email', 'test@example.invalid');
+git(audited, 'config', 'user.name', 'kit test');
+git(audited, 'commit', '--quiet', '--allow-empty', '-m', 'feat: one [T-001]');
+const auditHash = git(audited, 'log', '-1', '--format=%h').out.trim();
+const stamp = (seconds) => new Date(Date.UTC(2026, 0, 1, 10, 0, seconds)).toISOString();
+const jsonl = (file, rows, tail = '') => put(file, rows.map((row) => JSON.stringify(row)).join('\n') + '\n' + tail);
+// A Codex transcript from short steps: [seconds, kind, value, failed].
+function codexSession(home, name, cwd, steps, source = 'vscode') {
+    const item = (at, payload) => ({ timestamp: stamp(at), type: 'response_item', payload });
+    const message = (at, role, text) => item(at, { type: 'message', role, content: [{ type: 'text', text }] });
+    const rows = [{ timestamp: stamp(steps[0][0]), type: 'session_meta', payload: { cwd, source } },
+        message(steps[0][0], 'developer', 'Kit version: 0.4.14')];
+    steps.forEach(([at, kind, value, failed], index) => {
+        const call_id = `c${index}`;
+        if (kind === 'user' || kind === 'assistant') rows.push(message(at, kind, value));
+        if (kind === 'end') rows.push({ timestamp: stamp(at), type: 'event_msg', payload: { type: 'task_complete' } });
+        if (kind === 'patch') rows.push(item(at, { type: 'custom_tool_call', call_id, input: `tools.apply_patch(\`*** Begin Patch\n*** Update File: ${value}\n*** End Patch\`)` }));
+        if (kind === 'run') {
+            rows.push(item(at, { type: 'custom_tool_call', call_id, input: `tools.exec_command({cmd:${JSON.stringify(value)}})` }));
+            rows.push(item(at + 1, { type: 'custom_tool_call_output', call_id, output: JSON.stringify({ exit_code: failed ? 1 : 0 }) }));
+        }
+    });
+    jsonl(path.join(home, '.codex', 'sessions', '2026', '01', '01', `rollout-${name}.jsonl`), rows, '{"half written');
+}
+const auditRun = (home, ...extra) => node(audit, audited, '--home', home, ...extra);
+const honest = path.join(work, 'home-honest');
+codexSession(honest, 'honest', audited, [
+    [0, 'user', 'do T-001 and merge it'], [5, 'assistant', 'starting'],
+    [10, 'run', 'node claim-task.mjs claim . T-001 Codex'], [20, 'patch', 'src/a.ts'],
+    [30, 'run', 'npm test'], [40, 'run', 'git switch main; git merge --ff-only work'],
+    [50, 'assistant', `Commit: ${auditHash} on main\nTested: tests passed`], [51, 'end'],
+]);
+codexSession(honest, 'helper', audited, [[0, 'assistant', 'Commit saved locally']], { subagent: 'review' });
+codexSession(honest, 'elsewhere', empty, [[0, 'assistant', 'Commit saved locally']]);
+r = auditRun(honest);
+check('audit: an honest session has no finding, and helpers and other projects are skipped', r.code === 0 && r.out.includes('no problem found') && r.out.includes('1 session(s) read: 0 failed, 0 suspected'), r.out);
+const careless = path.join(work, 'home-careless');
+codexSession(careless, 'careless', audited, [
+    [0, 'user', 'do T-002'], [400, 'assistant', 'started'], [401, 'patch', 'src/a.ts'],
+    [402, 'run', 'npm test', true], [404, 'run', 'git switch main; git merge work'],
+    [410, 'assistant', 'Commit changes are saved locally\nAll tests passed'],
+    [411, 'assistant', '* Commit `abcdef1234` on main'], [412, 'end'],
+]);
+r = auditRun(careless);
+check('audit: saved files called a commit fail', /FAIL .*Commit line without a hash or "none"/.test(r.out), r.out);
+check('audit: a commit hash that does not exist is suspected', /SUSPECT .*abcdef1234, which is not in this repository/.test(r.out), r.out);
+check('audit: "passed" after a failed run is suspected', /SUSPECT .*after a failed run/.test(r.out), r.out);
+check('audit: a long silence is suspected', /SUSPECT .*no reply for 400s/.test(r.out), r.out);
+check('audit: an unrequested merge into main is suspected', /SUSPECT .*merge into main without a message asking/.test(r.out), r.out);
+check('audit: changing a task without a claim fails', /FAIL .*T-002 without claiming/.test(r.out), r.out);
+check('audit: a longer allowed wait silences the gap', !auditRun(careless, '--wait', '500').out.includes('no reply'), '');
+const plain = path.join(work, 'home-plain');
+codexSession(plain, 'plain', audited, [[0, 'user', 'status?'], [1, 'assistant', 'Commit: none (waiting for approval)\n- the commit rule is in the docs'], [2, 'end']]);
+check('audit: "none" and sentences about committing are accepted', auditRun(plain).out.includes('0 failed, 0 suspected'), '');
+const parallel = path.join(work, 'home-parallel');
+codexSession(parallel, 'first-writer', audited, [[0, 'user', 'go'], [1, 'assistant', 'ok'], [60, 'patch', 'src/a.ts'], [200, 'assistant', 'still working'], [201, 'end']]);
+codexSession(parallel, 'second-writer', audited, [[10, 'user', 'go'], [11, 'assistant', 'ok'], [90, 'patch', path.join(audited, 'src', 'a.ts')], [91, 'end']]);
+r = auditRun(parallel);
+check('audit: two sessions writing one file during a turn fail', /FAIL .*wrote the same files as session .*src\/a\.ts/.test(r.out), r.out);
+const handover = path.join(work, 'home-handover');
+codexSession(handover, 'first-writer', audited, [[0, 'user', 'go'], [1, 'assistant', 'ok'], [60, 'patch', 'src/a.ts'], [70, 'end'], [200, 'user', 'again'], [201, 'assistant', 'ok']]);
+codexSession(handover, 'second-writer', audited, [[80, 'user', 'go'], [81, 'assistant', 'ok'], [90, 'patch', 'src/a.ts'], [91, 'end']]);
+check('audit: a change after the other turn ended is a handover', !auditRun(handover).out.includes('wrote the same files'), '');
+const queued = path.join(work, 'home-claude');
+jsonl(path.join(queued, '.claude', 'projects', 'p', 'queued.jsonl'), [
+    { type: 'user', cwd: audited, timestamp: stamp(0), message: { content: 'build it' } },
+    { type: 'assistant', cwd: audited, timestamp: stamp(2), message: { content: [{ type: 'text', text: 'working' }] } },
+    { type: 'queue-operation', timestamp: stamp(10), content: 'are you there?' },
+    { type: 'user', cwd: audited, timestamp: stamp(300), message: { content: 'are you there?' } },
+    { type: 'assistant', cwd: audited, timestamp: stamp(320), message: { content: [{ type: 'text', text: `Commit: ${auditHash} on main` }], stop_reason: 'end_turn' } },
+]);
+r = auditRun(queued);
+check('audit: a queued Claude message is timed once, from when it was sent', r.code === 0 && (r.out.match(/no reply for 310s/g) ?? []).length === 1 && r.out.includes('0 failed, 1 suspected'), r.out);
+const strange = path.join(work, 'home-strange');
+jsonl(path.join(strange, '.claude', 'projects', 'p', 'new-format.jsonl'), [{ type: 'something-new', cwd: audited, timestamp: stamp(0) }]);
+check('audit: an unreadable format is reported as unknown', auditRun(strange).out.includes('UNKNOWN'), '');
+check('audit: fails outside a repository', node(audit, path.join(work, 'no-such-folder')).code === 2);
 
 // ---------- Updating an older project ----------
 const older = path.join(work, 'older');

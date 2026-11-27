@@ -6,3 +6,4 @@
 cde18c7e7b1bfe552195212e3fb699796878f74e2d081a1dcf8a92068a8b03f8 .githooks/pre-commit
 8fad65acbe6935f25f17144a8a32dab24fae90e75b9ea8eb4d01ee28bc24d1fd .githooks/pre-push
 ac9fe396adac878846cfb0edba1bc827242552c15e53bf3385939c99fa1d590c .ai-kit/scan-secrets.sh
+bedb0fb77c0fb0eb664917af37013d8e221d5047d9d7e52d75f77338bd1e82f7 .ai-kit/scan-secrets.sh

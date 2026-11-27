@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.15 - 2026-11-27
+Checking what sessions said against what they did:
+- `kit-review/scripts/session-audit.mjs` reads Codex and Claude Code transcripts and reports long silences, unsupported `Commit` lines, unbacked "passed" claims, unrequested sensitive actions, missing task claims and parallel writers. On the trial's real sessions it found the failed commit claims, the two writers and the silence recorded earlier. It does not judge decisions, design differences or looks.
+- The full secret scan no longer prints git's line-ending notices on Windows (`docs/ISSUES.md`, KI-030). Existing projects get it with `setup-project.mjs --update`.
+- `docs/PLAN.md` holds the kit's own current position.
+
 ## 0.4.14 - 2026-11-27
 Fix from the first real refusal of a second session (`docs/ISSUES.md`, KI-029):
 - The refusal message and the core rules tell the refused session to stop and not to ask for a release, which is only for a session the user confirms has stopped.

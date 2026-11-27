@@ -187,7 +187,8 @@ case "${1:-}" in
         g ls-files > "$tmp/files" || fail "cannot list files"
         scan_set --cached "$tmp/files"
         # Edits and new files are not in the index yet, but the next "git add" would take them.
-        g diff --name-only --diff-filter=ACMRT > "$tmp/changed" || fail "cannot list changed files"
+        # safecrlf=false only silences git's line-ending notices; real errors still show and stop the scan.
+        g -c core.safecrlf=false diff --name-only --diff-filter=ACMRT > "$tmp/changed" || fail "cannot list changed files"
         g ls-files --others --exclude-standard > "$tmp/new" || fail "cannot list new files"
         # A name ending in "/" is a nested repository, which git does not add as files.
         cat "$tmp/changed" "$tmp/new" | grep -v '/$' | sort -u > "$tmp/worktree"
