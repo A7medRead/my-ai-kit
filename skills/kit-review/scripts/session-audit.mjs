@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Compares what AI sessions said and did, using the transcripts the tools keep on this machine.
 // Usage: node session-audit.mjs <project> [--since YYYY-MM-DD] [--wait seconds] [--home dir]
-// Read only. Reads Codex and Claude Code transcripts. Neither format is a published interface,
-// so unknown records are skipped and a session that yields nothing is reported as unreadable.
+// Read only. Reads Codex and Claude Code transcripts. Neither format is a published interface:
+// other records are skipped, but a tool call or a result that cannot be read is reported as UNKNOWN,
+// so that "no problem found" is never said about something that was not read.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -50,38 +51,94 @@ function records(file) {
     });
 }
 
+// Only the instructions the tool loaded say which kit a session ran: the same words also appear
+// in files the session read and in messages.
+const kitVersion = (instructions) => /Kit version: (\d+\.\d+\.\d+)/.exec(instructions.join('\n'))?.[1];
+
+// A cmd value written out in full. A value built while the script runs cannot be read.
+const LITERAL = String.raw`(?:String\.raw\s*)?(["'\x60])((?:\\.|(?!\1)[^\\])*)\1`;
+const COMMANDS = new RegExp(String.raw`\bcmd["']?\s*:\s*` + LITERAL, 'gs');
+const WHOLE_COMMAND = new RegExp(String.raw`^\s*\(\s*\{[^{}]*?\bcmd["']?\s*:\s*` + LITERAL + String.raw`\s*[,}]`, 's');
+// Codex tools that neither run a command nor change a file.
+const QUIET = new Set(['wait', 'request_user_input_async', 'view_image', 'web__run', 'update_plan']);
+
+// Returns the names of everything in one Codex call that this script cannot read.
+function unreadCodex(name, input, files, commands) {
+    const used = [...input.matchAll(/\btools\.(\w+)/g)].map((m) => m[1]);
+    if (used.length === 0) {
+        const read = (name === 'apply_patch' && files.length) || (name === 'exec_command' && commands.length) || QUIET.has(name);
+        return read ? [] : [name];
+    }
+    const unread = used.filter((tool) => !QUIET.has(tool) && !['exec_command', 'apply_patch', 'write_stdin'].includes(tool));
+    if (used.includes('apply_patch') && !files.length) unread.push('apply_patch without a file name');
+    // Text typed into a running program is a command too.
+    if (used.includes('write_stdin') && /\bchars\b(?!["']?\s*:\s*(""|''|``))/.test(input)) unread.push('write_stdin input');
+    if (/\btools\s*\[/.test(input)) unread.push('a tool picked while running');
+    for (const after of input.split(/\btools\.exec_command\b/).slice(1)) {
+        const whole = WHOLE_COMMAND.exec(after);
+        if (!whole || (whole[1] === '`' && /(?<!\\)\$\{/.test(whole[2]))) unread.push('exec_command with a computed command');
+    }
+    return unread;
+}
+
 function readCodex(file, rows) {
     const meta = rows.find((row) => row.type === 'session_meta')?.payload;
     // Sub-agents record an object here; their work belongs to the session that started them.
     if (!meta || typeof meta.source !== 'string' || !inProject(meta.cwd)) return null;
     const events = [];
+    const instructions = [];
     const calls = new Map();
+    // A script that is still running reports its commands' results to a later "wait" call.
+    const cells = new Map();
     for (const row of rows) {
         const item = row.payload ?? {};
         const time = Date.parse(row.timestamp);
-        if (item.type === 'message' && (item.role === 'user' || item.role === 'assistant')) {
+        if (row.type === 'world_state') instructions.push(String(item.state?.agents_md?.text ?? ''));
+        if (item.type === 'message') {
             const text = (item.content ?? []).map((part) => part.text ?? '').join('\n');
+            if (item.role === 'developer' || (item.role === 'user' && /^\s*# AGENTS/.test(text))) instructions.push(text);
+            if (item.role !== 'user' && item.role !== 'assistant') continue;
             // Text the app injects in the user's name starts with a tag or the instructions heading.
             if (item.role === 'user' && /^\s*(<|# AGENTS)/.test(text)) continue;
             if (text.trim()) events.push({ time, kind: item.role === 'user' ? 'user' : 'say', text });
         } else if (item.type === 'custom_tool_call' || item.type === 'function_call') {
             const input = String(item.input ?? item.arguments ?? '');
+            const name = String(item.name ?? item.type);
+            let values;
+            try { values = JSON.parse(input); } catch { values = null; }
+            if (name === 'send_message_to_user_async' && typeof values?.message === 'string') {
+                events.push({ time, kind: 'say', text: values.message });
+                continue;
+            }
+            if (name === 'wait' && cells.has(String(values?.cell_id))) calls.set(item.call_id, cells.get(String(values.cell_id)));
             const files = [...input.matchAll(/\*\*\* (?:Add|Update|Delete) File: ((?:(?!\\n|\n|"|`).)+)/g)].map((m) => m[1].trim());
             if (files.length) events.push({ time, kind: 'write', files });
-            for (const m of input.matchAll(/\bcmd["']?\s*:\s*(["'`])((?:\\.|(?!\1)[^\\])*)\1/gs)) {
-                const command = { time, kind: 'command', text: m[2].replace(/\\n/g, '\n').replace(/\\(["'`\\])/g, '$1'), failed: false };
-                events.push(command);
-                calls.set(item.call_id, [...(calls.get(item.call_id) ?? []), command]);
-            }
-        } else if (item.type?.endsWith('_output') && calls.has(item.call_id)) {
+            const commands = [...input.matchAll(COMMANDS)].map((m) =>
+                ({ time, kind: 'command', text: m[2].replace(/\\n/g, '\n').replace(/\\(["'`\\])/g, '$1') }));
+            if (commands.length) calls.set(item.call_id, commands);
+            events.push(...commands);
+            for (const what of unreadCodex(name, input, files, commands)) events.push({ time, kind: 'unread', what });
+        } else if (item.type?.endsWith('_call')) events.push({ time, kind: 'unread', what: item.type });
+        else if (item.type?.endsWith('_output') && calls.has(item.call_id)) {
             const output = JSON.stringify(item.output ?? '');
-            // One call may run several commands; the exit codes cannot be told apart.
-            const failed = /exit_code[\\"]*:\s*[1-9]/.test(output) || output.includes('Script failed');
-            for (const command of calls.get(item.call_id)) command.failed = failed;
+            const group = calls.get(item.call_id);
+            const cell = /Script running with cell ID ([\w:.-]+)/.exec(output)?.[1];
+            if (cell) cells.set(cell, group);
+            const codes = [...output.matchAll(/exit_code[\\"]*:\s*(-?\d+)/g)].map((m) => Number(m[1]));
+            // One call may run several commands whose exit codes cannot be told apart, so success is
+            // known only when there is a zero for each of them. Otherwise the result stays unknown.
+            const failed = codes.some((code) => code !== 0) || output.includes('Script failed');
+            if (failed || codes.length >= group.length) for (const command of group) command.failed = failed;
         } else if (item.type === 'task_complete') events.push({ time, kind: 'end' });
     }
-    return { tool: 'codex', events };
+    return { tool: 'codex', events, kit: kitVersion(instructions) };
 }
+
+// Claude Code tools that neither run a command nor change a file. Anything else is reported.
+const CLAUDE_QUIET = new Set(['Read', 'Glob', 'Grep', 'Skill', 'ToolSearch', 'WebSearch', 'WebFetch', 'AskUserQuestion',
+    'SendUserFile', 'TodoWrite', 'TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskOutput', 'TaskStop', 'BashOutput',
+    'KillShell', 'EnterPlanMode', 'ExitPlanMode', 'ReportFindings']);
+const CLAUDE_QUIET_APP = /^mcp__(ccd_turn__|ccd_view__|visualize__|context7__|ccd_session__mark_chapter$)/;
 
 function readClaude(file, rows) {
     // The folder the session started in. A session may visit other folders later.
@@ -96,15 +153,20 @@ function readClaude(file, rows) {
         heard.push({ time, text });
         events.push({ time, kind: 'user', text });
     };
+    const instructions = [];
     for (const row of rows) {
         const time = Date.parse(row.timestamp);
+        if (row.type === 'attachment' && row.attachment?.type === 'instructions') instructions.push(JSON.stringify(row.attachment));
         if (row.type === 'queue-operation' && typeof row.content === 'string') hear(time, row.content);
         const content = row.message?.content;
         if (row.type === 'user' && !row.isMeta && !row.isSidechain) {
             if (typeof content === 'string') hear(time, content);
             else for (const part of content ?? []) {
                 if (part.type === 'text') hear(time, part.text);
-                if (part.type === 'tool_result' && calls.has(part.tool_use_id)) calls.get(part.tool_use_id).failed = part.is_error === true;
+                if (part.type !== 'tool_result' || !calls.has(part.tool_use_id)) continue;
+                const { command, background } = calls.get(part.tool_use_id);
+                // A background command answers as soon as it starts, before it has a result.
+                if (!background || part.is_error === true) command.failed = part.is_error === true;
             }
         }
         if (row.type !== 'assistant' || row.isSidechain || !Array.isArray(content)) continue;
@@ -112,15 +174,18 @@ function readClaude(file, rows) {
             if (part.type === 'text' && part.text.trim()) events.push({ time, kind: 'say', text: part.text });
             if (part.type !== 'tool_use') continue;
             if (part.name === 'Bash' || part.name === 'PowerShell') {
-                const command = { time, kind: 'command', text: String(part.input.command ?? ''), failed: false };
-                calls.set(part.id, command);
+                const command = { time, kind: 'command', text: String(part.input.command ?? '') };
+                calls.set(part.id, { command, background: part.input.run_in_background === true });
                 events.push(command);
+            } else if (['Write', 'Edit', 'MultiEdit', 'NotebookEdit'].includes(part.name)) {
+                events.push({ time, kind: 'write', files: [String(part.input.file_path ?? part.input.notebook_path)] });
+            } else if (!CLAUDE_QUIET.has(part.name) && !CLAUDE_QUIET_APP.test(part.name)) {
+                events.push({ time, kind: 'unread', what: String(part.name) });
             }
-            if (part.name === 'Write' || part.name === 'Edit') events.push({ time, kind: 'write', files: [String(part.input.file_path)] });
         }
         if (row.message.stop_reason === 'end_turn') events.push({ time, kind: 'end' });
     }
-    return { tool: 'claude', events };
+    return { tool: 'claude', events, kit: kitVersion(instructions) };
 }
 
 const since = options.since ? Date.parse(options.since) : 0;
@@ -133,7 +198,6 @@ for (const [folder, reader] of [[['.codex', 'sessions'], readCodex], [['.claude'
         if (!session) continue;
         session.events.sort((a, b) => a.time - b.time);
         session.id = path.basename(file, '.jsonl').slice(-12);
-        session.kit = /Kit version: (\d+\.\d+\.\d+)/.exec(rows.map((row) => JSON.stringify(row)).join('\n'))?.[1];
         session.start = session.events[0]?.time ?? Date.parse(rows[0]?.timestamp);
         sessions.push(session);
     }
@@ -163,6 +227,8 @@ function review(session) {
     const commands = events.filter((e) => e.kind === 'command');
     const said = events.filter((e) => e.kind === 'say');
     const asked = events.filter((e) => e.kind === 'user');
+    const unread = events.filter((e) => e.kind === 'unread');
+    const unreadBefore = (time) => unread.some((e) => e.time <= time);
 
     for (const message of asked) {
         const answer = events.find((e) => e.time >= message.time && (e.kind === 'say' || e.kind === 'end'));
@@ -186,6 +252,7 @@ function review(session) {
         const before = commands.filter((c) => c.time <= reply.time && CHECK.test(c.text));
         if (!before.length) add('SUSPECT', reply.time, 'the reply says checks passed, but this session ran no known check command before it');
         else if (before.at(-1).failed) add('SUSPECT', reply.time, `the reply says checks passed after a failed run: "${short(before.at(-1).text)}"`);
+        else if (before.at(-1).failed === undefined) add('UNKNOWN', reply.time, `the reply says checks passed, but the result of the last check was not found: "${short(before.at(-1).text)}"`);
     }
 
     const claimsScan = said.find((r) => /(فحص الأسرار|secret scan)[^\n]{0,60}(نجح|نضيف|passed|clean)|(نجح|passed)[^\n]{0,40}(فحص الأسرار|secret scan)/i.test(r.text));
@@ -204,8 +271,21 @@ function review(session) {
     const firstWrite = events.find((e) => e.kind === 'write' && e.files.some((f) => relative(f)));
     const [major, minor, patch] = (session.kit ?? '0.0.0').split('.').map(Number);
     const hasClaims = major > 0 || minor > 4 || (minor === 4 && patch >= 12);
-    if (task && firstWrite && hasClaims && !commands.some((c) => c.time <= firstWrite.time && /claim-task\.mjs\W+claim/.test(c.text))) {
-        add('FAIL', firstWrite.time, `changed files for ${task} without claiming the task first`);
+    if (task && firstWrite && (hasClaims || !session.kit) && !commands.some((c) => c.time <= firstWrite.time && /claim-task\.mjs\W+claim/.test(c.text))) {
+        const message = `changed files for ${task} without claiming the task first`;
+        if (unreadBefore(firstWrite.time)) add('UNKNOWN', firstWrite.time, `${message}, as far as could be read: an unread call came before`);
+        else if (!session.kit) add('SUSPECT', firstWrite.time, `${message}; the kit version is unknown, so claims may not have applied`);
+        else add('FAIL', firstWrite.time, message);
+    }
+    if (unread.length) {
+        const counts = new Map();
+        // Tool names come from the transcript, so they are cut to what a name can hold.
+        for (const { what } of unread) {
+            const name = what.replace(/[^\w .-]/g, '?').slice(0, 60);
+            counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+        const list = [...counts].map(([name, count]) => `${name} (${count})`).join(', ');
+        add('UNKNOWN', unread[0].time, `${unread.length} tool call(s) or part(s) not read, so actions in them are not checked: ${list}`);
     }
     session.task = task;
     return found;
@@ -248,15 +328,15 @@ for (const [index, first] of sessions.entries()) {
     }
 }
 
-const totals = { FAIL: 0, SUSPECT: 0 };
+const totals = { FAIL: 0, SUSPECT: 0, UNKNOWN: 0 };
 for (const session of sessions) {
     console.log(`\n== ${session.tool} ${clock(session.start)} · session ${session.id} · kit ${session.kit ?? 'unknown'}${session.task ? ` · ${session.task}` : ''}`);
-    if (!session.events.length) console.log('  UNKNOWN  no readable records: the transcript format may have changed');
-    else if (!session.found.length) console.log('  no problem found by these checks');
+    if (!session.events.length) session.found.push({ level: 'UNKNOWN', time: session.start, text: 'no readable records: the transcript format may have changed' });
+    if (!session.found.length) console.log('  no problem found by these checks');
     for (const finding of session.found.sort((a, b) => a.time - b.time)) {
         totals[finding.level]++;
         console.log(`  ${finding.level.padEnd(8)} ${clock(finding.time).slice(11)}  ${finding.text}`);
     }
 }
-console.log(`\n${sessions.length} session(s) read: ${totals.FAIL} failed, ${totals.SUSPECT} suspected.`);
-console.log('Not judged from transcripts: whether product decisions were put to the user, whether design differences were all shown, how a design looks, and other statements in replies.');
+console.log(`\n${sessions.length} session(s) read: ${totals.FAIL} failed, ${totals.SUSPECT} suspected, ${totals.UNKNOWN} unknown.`);
+console.log('Not judged from transcripts: whether product decisions were put to the user, whether design differences were all shown, how a design looks, files changed by shell commands, and other statements in replies.');

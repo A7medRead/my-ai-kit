@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.17 - 2026-11-27
+The session audit no longer reassures about what it did not read (`docs/ISSUES.md`, KI-033), found by a security review:
+- The kit version comes only from the instructions a session loaded. With an unknown version, a missing task claim is suspected instead of skipped.
+- A Codex command built while its script runs, text typed into a running program, an unrecognized tool, and Claude Code helpers and other tools are reported as `UNKNOWN`.
+- A check without a found result is `UNKNOWN`, no longer a success. Results that arrive with a later wait, `String.raw` commands and messages sent through a Codex tool are now read.
+- Expect many more `UNKNOWN` lines: Codex often writes commands and results in forms that cannot be read. Files changed by shell commands are still not seen.
+
 ## 0.4.16 - 2026-11-27
 Two fixes for problems seen in real use, neither yet confirmed there:
 - A mockup that showed up blank (`docs/ISSUES.md`, KI-021): `design-check.mjs` fails a mockup that depends on another local file or shows no text, and warns when it loads from the network. The rule applies with `--mockup` and to any file under `docs/design/`. `kit-design` requires an HTML mockup to be one self-contained file, shown with its screenshot. Text written directly in `<body>` is now measured for contrast too. A project's older copy in `.ai-kit/` keeps its previous behavior.

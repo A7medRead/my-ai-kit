@@ -25,7 +25,7 @@ To check what AI sessions said against what they did, run `node scripts/session-
 - It looks for: long silences, `Commit` lines that git does not support, "checks passed" without a passing run, sensitive actions nobody asked for, task changes without a claim, and two sessions writing at once.
 - `FAIL` is a fact from the transcript or git; `SUSPECT` needs a look. Read the session before calling a suspicion a problem.
 - It cannot judge whether the user was asked about a decision, whether design differences were all shown, how a design looks, or most other statements. Say which of these you checked yourself, and ask the user about the look.
-- The formats are not published interfaces and old Claude Code transcripts are deleted after a retention period, so audit soon after a phase. `UNKNOWN` means nothing was judged.
+- The formats are not published interfaces and old Claude Code transcripts are deleted after a retention period, so audit soon after a phase. `UNKNOWN` means that part was not judged: a call, a result or a whole session could not be read. Never report such a session as having no problem.
 - Transcripts are private: quote only what the finding needs, and keep them out of project and kit files.
 
 ## Report
